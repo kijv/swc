@@ -1,0 +1,51 @@
+[package]
+authors       = ["강동윤 <kdy1997.dev@gmail.com>", "kijv <kijv999@gmail.com>"]
+description   = "Markdown parser"
+documentation = "https://rustdoc.swc.rs/swc_markdown_parser/"
+edition       = "2021"
+include       = ["Cargo.toml", "src/**/*.rs", "src/**/*.json"]
+license       = { workspace = true }
+name          = "swc_markdown_parser"
+repository    = "https://github.com/swc-project/swc.git"
+version       = "0.31.2"
+
+[lib]
+bench = false
+
+[features]
+debug = []
+# TODO use these features
+gfm = []
+mdx = []
+
+[dependencies]
+rustc-hash = { workspace = true }
+
+swc_atoms        = { version = "7.0.0", path = "../swc_atoms" }
+swc_common       = { version = "14.0.1", path = "../swc_common" }
+swc_html_utils   = { version = "14.0.0", path = "../swc_html_utils" }
+swc_markdown_ast = { version = "0.1.0", path = "../swc_markdown_ast" }
+
+[dev-dependencies]
+codspeed-criterion-compat = { workspace = true }
+serde                     = { workspace = true }
+serde_json                = { workspace = true }
+
+swc_malloc = { version = "1.2.3", path = "../swc_malloc" }
+swc_markdown_ast = { version = "0.1.0", path = "../swc_markdown_ast", features = [
+  "serde-impl",
+] }
+swc_markdown_visit = { version = "0.1.0", path = "../swc_markdown_visit" }
+testing = { version = "15.0.0", path = "../testing" }
+
+# [[bench]]
+# harness = false
+# name    = "compare"
+
+# [[bench]]
+# harness = false
+# name    = "lexer"
+
+# [[bench]]
+# harness = false
+# name    = "parser"

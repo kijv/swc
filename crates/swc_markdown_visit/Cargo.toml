@@ -1,0 +1,29 @@
+[package]
+authors       = ["강동윤 <kdy1997.dev@gmail.com>", "kijv <kijv999@gmail.com>"]
+description   = "Visitor for markdown"
+documentation = "https://rustdoc.swc.rs/swc_markdown_visit/"
+edition       = "2021"
+license       = { workspace = true }
+name          = "swc_markdown_visit"
+repository    = "https://github.com/swc-project/swc.git"
+version       = "0.31.2"
+
+  [package.metadata.docs.rs]
+  all-features = true
+  rustdoc-args = ["--cfg", "docsrs"]
+
+[lib]
+bench = false
+
+[features]
+default    = ["serde"]
+path       = []
+serde-impl = ["serde"]
+
+[dependencies]
+serde = { workspace = true, optional = true, features = ["derive"] }
+
+swc_atoms        = { version = "7.0.0", path = "../swc_atoms" }
+swc_common       = { version = "14.0.1", path = "../swc_common" }
+swc_markdown_ast = { version = "0.1.0", path = "../swc_markdown_ast" }
+swc_visit        = { version = "2.0.1", path = "../swc_visit" }

@@ -1,0 +1,25 @@
+[package]
+authors       = ["강동윤 <kdy1997.dev@gmail.com>", "kijv <kijv999@gmail.com>"]
+description   = "Markdown apis for rust"
+documentation = "https://rustdoc.swc.rs/swc_markdown/"
+edition       = "2021"
+license       = { workspace = true }
+name          = "swc_markdown"
+repository    = "https://github.com/swc-project/swc.git"
+version       = "0.31.2"
+
+  [package.metadata.docs.rs]
+  all-features = true
+  rustdoc-args = ["--cfg", "docsrs"]
+
+[lib]
+bench = false
+
+[features]
+minifier = []
+
+[dependencies]
+swc_markdown_ast = { version = "0.1.0", path = "../swc_markdown_ast" }
+# swc_markdown_codegen = { version = "0.1.0", path = "../swc_markdown_codegen" }
+swc_markdown_parser = { version = "0.1.0", path = "../swc_markdown_parser" }
+swc_markdown_visit  = { version = "0.1.0", path = "../swc_markdown_visit" }

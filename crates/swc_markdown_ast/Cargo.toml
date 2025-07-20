@@ -1,0 +1,33 @@
+[package]
+authors       = ["강동윤 <kdy1997.dev@gmail.com>", "kijv <kijv999@gmail.com>"]
+description   = "AST definitions of markdown"
+documentation = "https://rustdoc.swc.rs/swc_markdown_ast/"
+edition       = "2021"
+license       = { workspace = true }
+name          = "swc_markdown_ast"
+repository    = "https://github.com/swc-project/swc.git"
+version       = "0.31.2"
+
+[lib]
+bench = false
+
+[features]
+__rkyv = []
+rkyv-impl = [
+  "__rkyv",
+  "rkyv",
+  "swc_atoms/rkyv-impl",
+  "swc_common/rkyv-impl",
+  "bytecheck",
+]
+serde-impl = ["serde"]
+
+[dependencies]
+bytecheck = { workspace = true, optional = true }
+is-macro  = { workspace = true }
+rkyv      = { workspace = true, optional = true }
+serde     = { workspace = true, features = ["derive"], optional = true }
+
+string_enum = { version = "1.0.2", path = "../string_enum/" }
+swc_atoms   = { version = "7.0.0", path = "../swc_atoms" }
+swc_common  = { version = "14.0.1", path = "../swc_common" }

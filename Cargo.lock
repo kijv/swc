@@ -5894,6 +5894,56 @@ dependencies = [
 ]
 
 [[package]]
+name = "swc_markdown"
+version = "0.1.0"
+dependencies = [
+ "swc_markdown_ast",
+ "swc_markdown_parser",
+ "swc_markdown_visit",
+]
+
+[[package]]
+name = "swc_markdown_ast"
+version = "0.1.0"
+dependencies = [
+ "bytecheck 0.8.1",
+ "is-macro",
+ "rkyv",
+ "serde",
+ "string_enum",
+ "swc_atoms",
+ "swc_common",
+]
+
+[[package]]
+name = "swc_markdown_parser"
+version = "0.1.0"
+dependencies = [
+ "codspeed-criterion-compat",
+ "rustc-hash 2.1.1",
+ "serde",
+ "serde_json",
+ "swc_atoms",
+ "swc_common",
+ "swc_html_utils",
+ "swc_malloc",
+ "swc_markdown_ast",
+ "swc_markdown_visit",
+ "testing",
+]
+
+[[package]]
+name = "swc_markdown_visit"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "swc_atoms",
+ "swc_common",
+ "swc_markdown_ast",
+ "swc_visit",
+]
+
+[[package]]
 name = "swc_node_bundler"
 version = "33.0.0"
 dependencies = [
