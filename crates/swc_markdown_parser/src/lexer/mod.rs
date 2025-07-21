@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::VecDeque, mem::take, rc::Rc};
+use std::{cell::RefCell, char::REPLACEMENT_CHARACTER, collections::VecDeque, mem::take, rc::Rc};
 
 use swc_common::{input::Input, BytePos, Span};
 use swc_html_utils::HTML_ENTITIES;
@@ -126,26 +126,6 @@ where
         self.input.cur()
     }
 
-    // Any occurrences of surrogates are surrogate-in-input-stream parse errors. Any
-    // occurrences of noncharacters are noncharacter-in-input-stream parse errors
-    // and any occurrences of controls other than ASCII whitespace and U+0000 NULL
-    // characters are control-character-in-input-stream parse errors.
-    //
-    // Postpone validation for each character for perf reasons and do it in
-    // `anything else`
-    #[inline(always)]
-    fn validate_input_stream_character(&mut self, c: char) {
-        let code = c as u32;
-
-        if is_surrogate(code) {
-            self.emit_error(ErrorKind::SurrogateInInputStream);
-        } else if is_allowed_control_character(code) {
-            self.emit_error(ErrorKind::ControlCharacterInInputStream);
-        } else if is_noncharacter(code) {
-            self.emit_error(ErrorKind::NoncharacterInInputStream);
-        }
-    }
-
     #[inline(always)]
     fn consume(&mut self) {
         self.cur = self.input.cur();
@@ -212,54 +192,12 @@ where
             if let Some((_, code_point, _)) = codes.first() {
                 let code_point = *code_point;
 
-                // Validate code point
+                // Simplified validation - replace NULL and handle out of range
                 let final_char = if code_point == 0 {
-                    self.emit_error(ErrorKind::NullCharacterReference);
                     '\u{FFFD}'
                 } else if code_point > 0x10ffff {
                     self.emit_error(ErrorKind::CharacterReferenceOutsideUnicodeRange);
                     '\u{FFFD}'
-                } else if is_surrogate(code_point) {
-                    self.emit_error(ErrorKind::SurrogateCharacterReference);
-                    '\u{FFFD}'
-                } else if is_noncharacter(code_point) {
-                    self.emit_error(ErrorKind::NoncharacterCharacterReference);
-                    char::from_u32(code_point).unwrap_or('\u{FFFD}')
-                } else if is_control(code_point)
-                    && !is_spacy(char::from_u32(code_point).unwrap_or('\0'))
-                {
-                    self.emit_error(ErrorKind::ControlCharacterReference);
-                    // Map specific control characters
-                    match code_point {
-                        0x80 => '\u{20AC}',
-                        0x82 => '\u{201A}',
-                        0x83 => '\u{0192}',
-                        0x84 => '\u{201E}',
-                        0x85 => '\u{2026}',
-                        0x86 => '\u{2020}',
-                        0x87 => '\u{2021}',
-                        0x88 => '\u{02C6}',
-                        0x89 => '\u{2030}',
-                        0x8a => '\u{0160}',
-                        0x8b => '\u{2039}',
-                        0x8c => '\u{0152}',
-                        0x8e => '\u{017D}',
-                        0x91 => '\u{2018}',
-                        0x92 => '\u{2019}',
-                        0x93 => '\u{201C}',
-                        0x94 => '\u{201D}',
-                        0x95 => '\u{2022}',
-                        0x96 => '\u{2013}',
-                        0x97 => '\u{2014}',
-                        0x98 => '\u{02DC}',
-                        0x99 => '\u{2122}',
-                        0x9a => '\u{0161}',
-                        0x9b => '\u{203A}',
-                        0x9c => '\u{0153}',
-                        0x9e => '\u{017E}',
-                        0x9f => '\u{0178}',
-                        _ => char::from_u32(code_point).unwrap_or('\u{FFFD}'),
-                    }
                 } else {
                     char::from_u32(code_point).unwrap_or('\u{FFFD}')
                 };
@@ -275,7 +213,7 @@ where
         let mut ws_start = text.len();
 
         for (i, c) in text.char_indices().rev() {
-            if c == ' ' || c == '\t' {
+            if is_space(c) || is_tab(c) {
                 non_ws_end = i;
             } else {
                 ws_start = non_ws_end;
@@ -301,8 +239,8 @@ where
 
         for c in whitespace.chars() {
             match c {
-                ' ' => space_count += 1,
-                '\t' => {
+                c if is_space(c) => space_count += 1,
+                c if is_tab(c) => {
                     // Emit accumulated spaces first
                     if space_count > 0 {
                         let space_end = BytePos(current_pos.0 + space_count);
@@ -357,12 +295,12 @@ where
                 // Consume the next input character:
                 match self.consume_next_char() {
                     // Space or tab: Handle differently based on line position
-                    Some(' ') | Some('\t') => {
+                    Some(c) if is_space(c) || is_tab(c) => {
                         if self.at_line_start {
                             // At line start: treat as whitespace
                             // Set token start to beginning of whitespace
                             self.token_start_pos = BytePos(self.input.cur_pos().0 - 1);
-                            if self.cur.unwrap() == ' ' {
+                            if is_space(c) {
                                 self.whitespace_count = 1;
                             } else {
                                 // Tab: emit immediately
@@ -373,7 +311,7 @@ where
                             self.state = State::Whitespace;
                         } else {
                             // Mid-line: add to text buffer
-                            self.buf.borrow_mut().push(self.cur.unwrap());
+                            self.buf.borrow_mut().push(c);
                             self.state = State::Text;
                         }
                     }
@@ -410,10 +348,9 @@ where
                         self.state = State::Marker;
                         self.at_line_start = false;
                     }
-                    // U+0000 NULL: Error
+                    // U+0000 NULL: Replace with replacement character
                     Some('\x00') => {
-                        self.emit_error(ErrorKind::UnexpectedNullCharacter);
-                        self.emit_token(Token::Text(String::from('\u{FFFD}')));
+                        self.emit_token(Token::Text(String::from(REPLACEMENT_CHARACTER)));
                         self.at_line_start = false;
                     }
                     // EOF
@@ -423,7 +360,6 @@ where
                     }
                     // Anything else: Append to text buffer
                     Some(c) => {
-                        self.validate_input_stream_character(c);
                         self.buf.borrow_mut().push(c);
                         self.state = State::Text;
                         self.at_line_start = false;
@@ -433,11 +369,11 @@ where
             State::Whitespace => {
                 match self.consume_next_char() {
                     // Space: Increment count
-                    Some(' ') => {
+                    Some(c) if is_space(c) => {
                         self.whitespace_count += 1;
                     }
                     // Tab: Emit spaces first, then tab
-                    Some('\t') => {
+                    Some(c) if is_tab(c) => {
                         if self.whitespace_count > 0 {
                             let space_start = BytePos(self.token_start_pos.0);
                             let space_end = BytePos(space_start.0 + self.whitespace_count);
@@ -514,7 +450,7 @@ where
                         self.at_line_start = false;
                     }
                     // Other special characters: Emit Text and reconsume
-                    Some('\n') | Some('\r') | Some('\\') | Some('&') => {
+                    Some(c) if is_line_ending(c, self.input.cur()) || c == '\\' || c == '&' => {
                         let text = self.buf.borrow().clone();
                         if !text.is_empty() {
                             let text_end = BytePos(self.input.cur_pos().0 - 1);
@@ -551,48 +487,13 @@ where
             State::Escape => {
                 match self.consume_next_char() {
                     // Escapable punctuation characters (per CommonMark 2.4)
-                    Some(c)
-                        if matches!(
-                            c,
-                            '!' | '"'
-                                | '#'
-                                | '$'
-                                | '%'
-                                | '&'
-                                | '\''
-                                | '('
-                                | ')'
-                                | '*'
-                                | '+'
-                                | ','
-                                | '-'
-                                | '.'
-                                | '/'
-                                | ':'
-                                | ';'
-                                | '<'
-                                | '='
-                                | '>'
-                                | '?'
-                                | '@'
-                                | '['
-                                | '\\'
-                                | ']'
-                                | '^'
-                                | '_'
-                                | '`'
-                                | '{'
-                                | '|'
-                                | '}'
-                                | '~'
-                        ) =>
-                    {
+                    Some(c) if is_ascii_punctuation_character(c) => {
                         self.emit_token(Token::BackslashEscape(c));
                         self.state = State::Data;
                         self.at_line_start = false;
                     }
                     // Newline: Hard break
-                    Some('\n') | Some('\r') => {
+                    Some(c) if is_line_ending(c, self.input.cur()) => {
                         self.emit_token(Token::BackslashEscape('\n'));
                         self.state = State::Data;
                         self.at_line_start = true;
@@ -736,7 +637,7 @@ where
                         self.temporary_buffer.push(c);
                     }
                     // Whitespace after marker: emit marker, then whitespace tokens
-                    Some(c @ (' ' | '\t')) => {
+                    Some(c) if is_space(c) || is_tab(c) => {
                         let marker_char = self.temporary_buffer.chars().next().unwrap();
                         let count = self.temporary_buffer.len() as u32;
                         let marker_end = BytePos(self.token_start_pos.0 + count);
@@ -775,73 +676,65 @@ where
     }
 }
 
-// By spec '\r` removed before tokenizer, but we keep them to have better AST
-// and don't break logic to ignore characters
+// A line ending is a line feed (U+000A), a carriage return (U+000D) not
+// followed by a line feed, or a carriage return and a following line feed.
 #[inline(always)]
-fn is_spacy(c: char) -> bool {
-    matches!(c, '\x09' | '\x0a' | '\x0d' | '\x0c' | '\x20')
+fn is_line_ending(c: char, next: Option<char>) -> bool {
+    (c == '\n' || c == '\r' && next != Some('\n')) || c == '\r' && next == Some('\n')
 }
 
+// A line containing no characters, or a line containing only spaces (U+0020) or
+// tabs (U+0009), is called a blank line.
 #[inline(always)]
-fn is_control(c: u32) -> bool {
-    matches!(c, c @ 0x00..=0x1f | c @ 0x7f..=0x9f if !matches!(c, 0x09 | 0x0a | 0x0c | 0x0d | 0x20))
+fn is_blank_line(line: &str) -> bool {
+    line.trim().is_empty()
 }
 
+// A Unicode whitespace character is a character in the Unicode Zs general
+// category, or a tab (U+0009), line feed (U+000A), form feed (U+000C), or
+// carriage return (U+000D).
 #[inline(always)]
-fn is_surrogate(c: u32) -> bool {
-    matches!(c, 0xd800..=0xdfff)
+fn is_unicode_whitespace_character(c: char) -> bool {
+    matches!(c, '\x09' | '\x0a' | '\x0c' | '\x0d' | '\x20')
 }
 
-// A noncharacter is a code point that is in the range U+FDD0 to U+FDEF,
-// inclusive, or U+FFFE, U+FFFF, U+1FFFE, U+1FFFF, U+2FFFE, U+2FFFF, U+3FFFE,
-// U+3FFFF, U+4FFFE, U+4FFFF, U+5FFFE, U+5FFFF, U+6FFFE, U+6FFFF, U+7FFFE,
-// U+7FFFF, U+8FFFE, U+8FFFF, U+9FFFE, U+9FFFF, U+AFFFE, U+AFFFF, U+BFFFE,
-// U+BFFFF, U+CFFFE, U+CFFFF, U+DFFFE, U+DFFFF, U+EFFFE, U+EFFFF, U+FFFFE,
-// U+FFFFF, U+10FFFE, or U+10FFFF.
+// Unicode whitespace is a sequence of one or more Unicode whitespace
+// characters.
 #[inline(always)]
-fn is_noncharacter(c: u32) -> bool {
-    matches!(
-        c,
-        0xfdd0
-            ..=0xfdef
-                | 0xfffe
-                | 0xffff
-                | 0x1fffe
-                | 0x1ffff
-                | 0x2fffe
-                | 0x2ffff
-                | 0x3fffe
-                | 0x3ffff
-                | 0x4fffe
-                | 0x4ffff
-                | 0x5fffe
-                | 0x5ffff
-                | 0x6fffe
-                | 0x6ffff
-                | 0x7fffe
-                | 0x7ffff
-                | 0x8fffe
-                | 0x8ffff
-                | 0x9fffe
-                | 0x9ffff
-                | 0xafffe
-                | 0xaffff
-                | 0xbfffe
-                | 0xbffff
-                | 0xcfffe
-                | 0xcffff
-                | 0xdfffe
-                | 0xdffff
-                | 0xefffe
-                | 0xeffff
-                | 0xffffe
-                | 0xfffff
-                | 0x10fffe
-                | 0x10ffff,
-    )
+fn is_unicode_whitespace(line: &str) -> bool {
+    line.chars().all(|c| is_unicode_whitespace_character(c))
 }
 
+// A tab is U+0009.
 #[inline(always)]
-fn is_allowed_control_character(c: u32) -> bool {
-    c != 0x00 && is_control(c)
+fn is_tab(c: char) -> bool {
+    c == '\x09'
+}
+
+// A space is U+0020.
+#[inline(always)]
+fn is_space(c: char) -> bool {
+    c == '\x20'
+}
+
+// An ASCII control character is a character between U+0000–1F (both including)
+// or U+007F.
+#[inline(always)]
+fn is_ascii_control_character(c: char) -> bool {
+    matches!(c, '\x00'..='\x1f' | '\x7f')
+}
+
+// An ASCII punctuation character is !, ", #, $, %, &, ', (, ), *, +, ,, -, ., /
+// (U+0021–2F), :, ;, <, =, >, ?, @ (U+003A–0040), [, \, ], ^, _, `
+// (U+005B–0060), {, |, }, or ~ (U+007B–007E).
+#[inline(always)]
+fn is_ascii_punctuation_character(c: char) -> bool {
+    matches!(c, '\x21'..='\x2f' | '\x3a'..='\x40' | '\x5b'..='\x60' | '\x7b'..='\x7e')
+}
+
+// A Unicode punctuation character is a character in the Unicode P (punctuation)
+// or S (symbol) general categories.
+#[inline(always)]
+fn is_unicode_punctuation_character(c: char) -> bool {
+    matches!(c, '\x21'..='\x2f' | '\x3a'..='\x40' | '\x5b'..='\x60' | '\x7b'..='\x7e')
 }

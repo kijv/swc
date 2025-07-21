@@ -1,5 +1,6 @@
-// TODO do this
-
-pub use self::base::*;
+pub use self::{base::*, container::*, inline::*, leaf::*};
 
 mod base;
+mod container;
+mod inline;
+mod leaf;
