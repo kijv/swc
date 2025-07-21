@@ -25,5 +25,5 @@ serde = { workspace = true, optional = true, features = ["derive"] }
 
 swc_atoms        = { version = "7.0.0", path = "../swc_atoms" }
 swc_common       = { version = "14.0.1", path = "../swc_common" }
-swc_markdown_ast = { version = "0.1.0", path = "../swc_markdown_ast" }
+swc_markdown_ast = { version = "0.31.2", path = "../swc_markdown_ast" }
 swc_visit        = { version = "2.0.1", path = "../swc_visit" }

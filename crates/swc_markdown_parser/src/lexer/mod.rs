@@ -1,28 +1,28 @@
-use std::{cell::RefCell, char::REPLACEMENT_CHARACTER, collections::VecDeque, mem::take, rc::Rc};
+use std::{cell::RefCell, collections::VecDeque, mem::take, rc::Rc};
 
-use rustc_hash::FxHashSet;
-use swc_atoms::{atom, Atom};
 use swc_common::{input::Input, BytePos, Span};
+use swc_html_utils::HTML_ENTITIES;
 
-pub mod token;
-
-// use swc_html_utils::{Entity, HTML_ENTITIES};
+use self::token::{Token, TokenAndSpan};
 use crate::{
     error::{Error, ErrorKind},
-    lexer::token::{Raw, Token, TokenAndSpan},
     parser::input::ParserInput,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+pub mod token;
+
+#[derive(Debug, Clone)]
 pub enum State {
-    Document,
-    BlockQuote,
-    ContinuedBlockQuote,
-    ListItem,
-    ContinuedListItem,
-    List,
-    ContinuedList,
-    Inline,
+    Data,          // Initial state for general content
+    Whitespace,    // Accumulating spaces/tabs
+    Text,          // Building text token
+    Escape,        // After backslash
+    Entity,        // After '&'
+    NamedEntity,   // Named entity accumulation
+    NumericEntity, // After '&#'
+    HexEntity,     // Hex numeric entity
+    DecimalEntity, // Decimal numeric entity
+    Marker,        // Potential block marker
 }
 
 pub(crate) type LexResult<T> = Result<T, ErrorKind>;
@@ -34,22 +34,17 @@ where
     input: I,
     cur: Option<char>,
     cur_pos: BytePos,
-    cur_line: Option<String>,
-    last_token_pos: BytePos,
+    token_start_pos: BytePos,
     finished: bool,
     state: State,
     return_state: State,
     errors: Vec<Error>,
-    last_start_tag_name: Option<Atom>,
     pending_tokens: VecDeque<TokenAndSpan>,
     buf: Rc<RefCell<String>>,
-    sub_buf: Rc<RefCell<String>>,
-    current_token: Option<Token>,
-    // attributes_validator: FxHashSet<Atom>,
-    // attribute_start_position: Option<BytePos>,
-    // character_reference_code: Option<Vec<(u8, u32, Option<char>)>>,
+    whitespace_count: u32,
+    character_reference_code: Option<Vec<(u8, u32, Option<char>)>>,
     temporary_buffer: String,
-    // is_adjusted_current_node_is_element_in_html_namespace: Option<bool>,
+    at_line_start: bool,
     phantom: std::marker::PhantomData<&'a ()>,
 }
 
@@ -64,23 +59,17 @@ where
             input,
             cur: None,
             cur_pos: start_pos,
-            cur_line: None,
-            last_token_pos: start_pos,
+            token_start_pos: start_pos,
             finished: false,
-            state: State::Document,
-            return_state: State::Document,
+            state: State::Data,
+            return_state: State::Data,
             errors: Vec::new(),
-            last_start_tag_name: None,
             pending_tokens: VecDeque::with_capacity(16),
             buf: Rc::new(RefCell::new(String::with_capacity(256))),
-            sub_buf: Rc::new(RefCell::new(String::with_capacity(256))),
-            current_token: None,
-            // attributes_validator: Default::default(),
-            // attribute_start_position: None,
-            // character_reference_code: None,
-            // Do this without a new allocation.
+            whitespace_count: 0,
+            character_reference_code: None,
             temporary_buffer: String::with_capacity(33),
-            // is_adjusted_current_node_is_element_in_html_namespace: None,
+            at_line_start: true, // Start at beginning of input
             phantom: std::marker::PhantomData,
         };
 
@@ -103,14 +92,7 @@ impl<'a, I: Input<'a>> Iterator for Lexer<'a, I> {
     fn next(&mut self) -> Option<Self::Item> {
         let token_and_span = self.read_token_and_span();
 
-        match token_and_span {
-            Ok(token_and_span) => {
-                return Some(token_and_span);
-            }
-            Err(..) => {
-                return None;
-            }
-        }
+        token_and_span.ok()
     }
 }
 
@@ -129,14 +111,6 @@ where
     fn take_errors(&mut self) -> Vec<Error> {
         take(&mut self.errors)
     }
-
-    fn set_last_start_tag_name(&mut self, tag_name: &Atom) {
-        self.last_start_tag_name = Some(tag_name.clone());
-    }
-
-    // fn set_adjusted_current_node_to_html_namespace(&mut self, value: bool) {
-    //     self.is_adjusted_current_node_is_element_in_html_namespace = Some(value);
-    // }
 
     fn set_input_state(&mut self, state: State) {
         self.state = state;
@@ -177,12 +151,6 @@ where
         self.cur = self.input.cur();
         self.cur_pos = self.input.cur_pos();
 
-        if self.cur_line.is_none() {
-            self.cur_line = self.cur.map(|c| c.to_string());
-        } else if let Some(line) = &self.cur_line {
-            self.cur_line = self.cur.map(|c| line.clone() + &c.to_string());
-        }
-
         if self.cur.is_some() {
             unsafe {
                 // Safety: self.cur is Some()
@@ -192,17 +160,12 @@ where
     }
 
     #[inline(always)]
-    fn reconsume(&mut self) {
+    fn reconsume_in_state(&mut self, state: State) {
+        self.state = state;
         unsafe {
             // Safety: self.cur_pos is valid position because we got it from self.input
             self.input.reset_to(self.cur_pos);
         }
-    }
-
-    #[inline(always)]
-    fn reconsume_in_state(&mut self, state: State) {
-        self.state = state;
-        self.reconsume();
     }
 
     #[inline(always)]
@@ -219,40 +182,6 @@ where
         c
     }
 
-    #[inline(always)]
-    fn consume_next_line(&mut self) -> Option<String> {
-        let mut line = String::new();
-
-        if let Some(c) = self.consume_next_char() {
-            if c != '\n' {
-                line.push(c);
-            }
-        } else {
-            return None;
-        }
-
-        while let Some(c) = self.consume_next_char() {
-            if c == '\n' {
-                break;
-            }
-
-            line.push(c);
-        }
-
-        self.cur_line = Some(line.to_owned());
-
-        Some(line)
-    }
-
-    #[inline(always)]
-    fn reconsume_line(&mut self) {
-        if let Some(line) = &self.cur_line {
-            for _ in 0..line.len() {
-                self.reconsume();
-            }
-        }
-    }
-
     #[cold]
     fn emit_error(&mut self, kind: ErrorKind) {
         self.errors.push(Error::new(
@@ -262,146 +191,141 @@ where
     }
 
     #[inline(always)]
+    fn start_token(&mut self) {
+        self.token_start_pos = self.input.cur_pos();
+    }
+
+    #[inline(always)]
     fn emit_token(&mut self, token: Token) {
-        let cur_pos = self.input.cur_pos();
-
-        let span = Span::new(self.last_token_pos, cur_pos);
-
-        self.last_token_pos = cur_pos;
+        let span = Span::new(self.token_start_pos, self.input.cur_pos());
         self.pending_tokens.push_back(TokenAndSpan { span, token });
     }
 
-    // An appropriate end tag token is an end tag token whose tag name matches the
-    // tag name of the last start tag to have been emitted from this tokenizer, if
-    // any. If no start tag has been emitted from this tokenizer, then no end tag
-    // token is appropriate.
-    // #[inline(always)]
-    // fn current_end_tag_token_is_an_appropriate_end_tag_token(&mut self) -> bool {
-    //     if let Some(last_start_tag_name) = &self.last_start_tag_name {
-    //         let b = self.buf.clone();
-    //         let buf = b.borrow();
-
-    //         return *last_start_tag_name == *buf;
-    //     }
-
-    //     false
-    // }
-
     #[inline(always)]
-    fn emit_temporary_buffer_as_character_tokens(&mut self) {
-        for c in take(&mut self.temporary_buffer).chars() {
-            self.emit_token(Token::Character {
-                value: c,
-                raw: Some(Raw::Same),
-            });
-        }
+    fn emit_token_with_span(&mut self, token: Token, start: BytePos, end: BytePos) {
+        let span = Span::new(start, end);
+        self.pending_tokens.push_back(TokenAndSpan { span, token });
     }
 
-    fn flush_code_points_consumed_as_character_reference(&mut self, raw: Option<String>) {
-        // When the length of raw is more than the length of temporary buffer we emit a
-        // raw character in the first character token
-        let mut once_raw = raw;
+    fn validate_and_emit_numeric_entity(&mut self) {
+        if let Some(ref codes) = self.character_reference_code {
+            if let Some((_, code_point, _)) = codes.first() {
+                let code_point = *code_point;
 
-        let is_value_eq_raw = if let Some(raw) = &once_raw {
-            *raw == self.temporary_buffer
-        } else {
-            true
-        };
-
-        for c in take(&mut self.temporary_buffer).chars() {
-            self.emit_token(Token::Character {
-                value: c,
-                raw: if is_value_eq_raw {
-                    Some(Raw::Same)
+                // Validate code point
+                let final_char = if code_point == 0 {
+                    self.emit_error(ErrorKind::NullCharacterReference);
+                    '\u{FFFD}'
+                } else if code_point > 0x10ffff {
+                    self.emit_error(ErrorKind::CharacterReferenceOutsideUnicodeRange);
+                    '\u{FFFD}'
+                } else if is_surrogate(code_point) {
+                    self.emit_error(ErrorKind::SurrogateCharacterReference);
+                    '\u{FFFD}'
+                } else if is_noncharacter(code_point) {
+                    self.emit_error(ErrorKind::NoncharacterCharacterReference);
+                    char::from_u32(code_point).unwrap_or('\u{FFFD}')
+                } else if is_control(code_point)
+                    && !is_spacy(char::from_u32(code_point).unwrap_or('\0'))
+                {
+                    self.emit_error(ErrorKind::ControlCharacterReference);
+                    // Map specific control characters
+                    match code_point {
+                        0x80 => '\u{20AC}',
+                        0x82 => '\u{201A}',
+                        0x83 => '\u{0192}',
+                        0x84 => '\u{201E}',
+                        0x85 => '\u{2026}',
+                        0x86 => '\u{2020}',
+                        0x87 => '\u{2021}',
+                        0x88 => '\u{02C6}',
+                        0x89 => '\u{2030}',
+                        0x8a => '\u{0160}',
+                        0x8b => '\u{2039}',
+                        0x8c => '\u{0152}',
+                        0x8e => '\u{017D}',
+                        0x91 => '\u{2018}',
+                        0x92 => '\u{2019}',
+                        0x93 => '\u{201C}',
+                        0x94 => '\u{201D}',
+                        0x95 => '\u{2022}',
+                        0x96 => '\u{2013}',
+                        0x97 => '\u{2014}',
+                        0x98 => '\u{02DC}',
+                        0x99 => '\u{2122}',
+                        0x9a => '\u{0161}',
+                        0x9b => '\u{203A}',
+                        0x9c => '\u{0153}',
+                        0x9e => '\u{017E}',
+                        0x9f => '\u{0178}',
+                        _ => char::from_u32(code_point).unwrap_or('\u{FFFD}'),
+                    }
                 } else {
-                    once_raw.take().map(|x| Raw::Atom(Atom::new(x)))
-                },
-            });
+                    char::from_u32(code_point).unwrap_or('\u{FFFD}')
+                };
+
+                self.emit_token(Token::Entity(String::from(final_char)));
+            }
         }
+        self.character_reference_code = None;
     }
 
-    fn append_block_token(&mut self, token: Token) {
-        if self.current_token.is_none() {
-            self.current_token = Some(token);
-        } else if let Some(Token::Block { children, .. }) = &mut self.current_token {
-            children.push(token);
-        }
-    }
+    fn split_trailing_whitespace(&self, text: &str) -> (String, String) {
+        let mut non_ws_end = text.len();
+        let mut ws_start = text.len();
 
-    fn get_preprended_block_token(&self) -> Option<Token> {
-        if let Some(Token::Block { children, .. }) = &self.current_token {
-            if let Some(token) = children.last() {
-                return Some(token.clone());
+        for (i, c) in text.char_indices().rev() {
+            if c == ' ' || c == '\t' {
+                non_ws_end = i;
+            } else {
+                ws_start = non_ws_end;
+                break;
             }
         }
 
-        self.current_token.clone()
-    }
-
-    #[inline(always)]
-    fn close_block_token(&mut self) {
-        if let Some(current_token) = self.current_token.take() {
-            self.emit_token(current_token);
-        }
-    }
-
-    fn flush_current_container(&mut self, state: State) {
-        self.state = state;
-        self.reconsume_line();
-        self.close_block_token();
-    }
-
-    #[inline(always)]
-    fn emit_character_token(&mut self, value: char) {
-        self.emit_token(Token::Character {
-            value,
-            raw: Some(Raw::Same),
-        });
-    }
-
-    #[inline(always)]
-    fn emit_character_token_with_raw(&mut self, c: char, raw_c: char) {
-        let b = self.buf.clone();
-        let mut buf = b.borrow_mut();
-
-        buf.push(raw_c);
-
-        self.emit_token(Token::Character {
-            value: c,
-            raw: Some(Raw::Atom(Atom::new(&**buf))),
-        });
-
-        buf.clear();
-    }
-
-    fn handle_raw_and_emit_character_token(&mut self, c: char) {
-        let is_cr = c == '\r';
-
-        if is_cr {
-            let b = self.buf.clone();
-            let mut buf = b.borrow_mut();
-
-            buf.push(c);
-
-            if self.input.cur() == Some('\n') {
-                unsafe {
-                    // Safety: cur() is Some('\n')
-                    self.input.bump();
-                }
-                buf.push('\n');
-            }
-
-            self.emit_token(Token::Character {
-                value: '\n',
-                raw: Some(Raw::Atom(Atom::new(&**buf))),
-            });
-
-            buf.clear();
+        if ws_start == 0 {
+            // All whitespace
+            (String::new(), text.to_string())
+        } else if ws_start == text.len() {
+            // No trailing whitespace
+            (text.to_string(), String::new())
         } else {
-            self.emit_token(Token::Character {
-                value: c,
-                raw: Some(Raw::Same),
-            });
+            // Mixed content
+            (text[..ws_start].to_string(), text[ws_start..].to_string())
+        }
+    }
+
+    fn emit_whitespace_tokens(&mut self, whitespace: &str, start_pos: BytePos) {
+        let mut space_count = 0;
+        let mut current_pos = start_pos;
+
+        for c in whitespace.chars() {
+            match c {
+                ' ' => space_count += 1,
+                '\t' => {
+                    // Emit accumulated spaces first
+                    if space_count > 0 {
+                        let space_end = BytePos(current_pos.0 + space_count);
+                        self.emit_token_with_span(
+                            Token::Space(space_count),
+                            current_pos,
+                            space_end,
+                        );
+                        current_pos = space_end;
+                        space_count = 0;
+                    }
+                    let tab_end = BytePos(current_pos.0 + 1);
+                    self.emit_token_with_span(Token::Tab, current_pos, tab_end);
+                    current_pos = tab_end;
+                }
+                _ => {} // Ignore non-whitespace (shouldn't happen)
+            }
+        }
+
+        // Emit remaining spaces
+        if space_count > 0 {
+            let space_end = BytePos(current_pos.0 + space_count);
+            self.emit_token_with_span(Token::Space(space_count), current_pos, space_end);
         }
     }
 
@@ -420,226 +344,434 @@ where
             Token::Eof => {
                 self.finished = true;
 
-                return Err(ErrorKind::Eof);
+                Err(ErrorKind::Eof)
             }
-            _ => {
-                return Ok(token_and_span);
-            }
+            _ => Ok(token_and_span),
         }
     }
 
     fn run(&mut self) -> LexResult<()> {
-        dbg!(&self.state);
-
         match self.state {
-            State::Document => match self.consume_next_line() {
-                Some(line) => {
-                    let line = line.trim_end();
-
-                    // https://spec.commonmark.org/0.31.2/#blank-lines
-                    if line.is_empty() {
-                        return Ok(());
-                    }
-
-                    if let Some(space_offset) = if line.starts_with('>') {
-                        Some(0)
-                    } else {
-                        let spaces = line.chars().take_while(|c| c == &' ').count();
-
-                        if spaces <= 3 {
-                            Some(spaces)
-                        } else {
-                            None
-                        }
-                    } {
-                        let mut chars = line.chars().skip(space_offset);
-
-                        if chars.next().eq(&Some('>')) {
-                            self.flush_current_container(State::BlockQuote);
-
-                            return Ok(());
-                        }
-                    }
-
-                    // https://spec.commonmark.org/0.31.2/#thematic-breaks (4.1)
-                    if let Some(space_offset) =
-                        if line.starts_with("-") || line.starts_with("*") || line.starts_with("_") {
-                            Some(0)
-                        } else {
-                            let spaces = line.chars().take_while(|c| c == &' ').count();
-
-                            if spaces <= 3 {
-                                Some(spaces)
+            State::Data => {
+                self.start_token();
+                // Consume the next input character:
+                match self.consume_next_char() {
+                    // Space or tab: Handle differently based on line position
+                    Some(' ') | Some('\t') => {
+                        if self.at_line_start {
+                            // At line start: treat as whitespace
+                            // Set token start to beginning of whitespace
+                            self.token_start_pos = BytePos(self.input.cur_pos().0 - 1);
+                            if self.cur.unwrap() == ' ' {
+                                self.whitespace_count = 1;
                             } else {
-                                None
-                            }
-                        }
-                    {
-                        let chars = line.chars().skip(space_offset);
-                        let mut chars = chars.filter(|c| !c.is_whitespace());
-
-                        if chars.all(|c| c == '-')
-                            || chars.all(|c| c == '*')
-                            || chars.all(|c| c == '_')
-                        {
-                            self.close_block_token();
-                            self.emit_token(Token::ThematicBreak);
-
-                            return Ok(());
-                        }
-                    }
-
-                    // https://spec.commonmark.org/0.31.2/#atx-headings (4.2)
-                    if let Some(space_offset) = if line.starts_with('#') {
-                        Some(0)
-                    } else {
-                        let spaces = line.chars().take_while(|c| c == &' ').count();
-
-                        if spaces <= 3 {
-                            Some(spaces)
-                        } else {
-                            None
-                        }
-                    } {
-                        let start = space_offset;
-                        let hash_count = line.chars().skip(start).take_while(|c| c == &'#').count();
-
-                        if (1..=6).contains(&hash_count) {
-                            if let Some(inline_content_offset) = if line.len() - start == hash_count
-                            {
-                                Some(0)
-                            } else {
-                                let next_char = line.chars().nth(start + hash_count);
-                                if next_char == Some(' ') || next_char == Some('\t') {
-                                    Some(1)
-                                } else {
-                                    None
-                                }
-                            } {
-                                let start = start + hash_count + inline_content_offset;
-
-                                self.close_block_token();
-                                self.emit_token(Token::Heading {
-                                    level: hash_count as u8,
-                                    value: line.chars().skip(start).collect(),
-                                });
-
+                                // Tab: emit immediately
+                                self.emit_token(Token::Tab);
+                                self.at_line_start = false;
                                 return Ok(());
                             }
+                            self.state = State::Whitespace;
+                        } else {
+                            // Mid-line: add to text buffer
+                            self.buf.borrow_mut().push(self.cur.unwrap());
+                            self.state = State::Text;
                         }
                     }
-
-                    // https://spec.commonmark.org/0.31.2/#setext-headings (4.3)
-                    // TODO with line buffer (setext heading is multiple lines)
-
-                    // https://spec.commonmark.org/0.31.2/#indented-code-blocks (4.4)
-                    // TODO line buffer
-
-                    // https://spec.commonmark.org/0.31.2/#fenced-code-blocks (4.5)
-                    // TODO line buffer
-
-                    // https://spec.commonmark.org/0.31.2/#html-blocks (4.6)
-                    // TODO line buffer
-
-                    // https://spec.commonmark.org/0.31.2/#link-reference-definitions (4.7)
-                    // TODO line buffer
-
-                    // https://spec.commonmark.org/0.31.2/#paragraphs (4.8)
-                    // TODO line buffer
-                }
-                None => {
-                    self.state = State::Inline;
-                    self.reconsume();
-                }
-            },
-            // https://spec.commonmark.org/0.31.2/#block-quotes (5.1)
-            State::BlockQuote | State::ContinuedBlockQuote => match self.consume_next_line() {
-                Some(line) => {
-                    let line = line.trim_end();
-
-                    if line.is_empty() {
-                        self.flush_current_container(State::Document);
-
+                    // '\n' or '\r': Normalize and emit Newline
+                    Some('\n') => {
+                        self.emit_token(Token::Newline);
+                        self.at_line_start = true;
+                    }
+                    Some('\r') => {
+                        // Normalize \r\n or \r to \n
+                        if self.input.cur() == Some('\n') {
+                            self.consume();
+                        }
+                        self.emit_token(Token::Newline);
+                        self.at_line_start = true;
+                    }
+                    // '\\': Switch to EscapeState
+                    Some('\\') => {
+                        self.state = State::Escape;
+                        self.at_line_start = false;
+                    }
+                    // '&': Switch to EntityState
+                    Some('&') => {
+                        self.return_state = State::Data;
+                        self.state = State::Entity;
+                        self.at_line_start = false;
+                    }
+                    // Potential markers
+                    Some(
+                        c @ ('#' | '>' | '-' | '*' | '_' | '`' | '~' | '[' | '!' | '<' | '=' | '|'),
+                    ) => {
+                        self.temporary_buffer.clear();
+                        self.temporary_buffer.push(c);
+                        self.state = State::Marker;
+                        self.at_line_start = false;
+                    }
+                    // U+0000 NULL: Error
+                    Some('\x00') => {
+                        self.emit_error(ErrorKind::UnexpectedNullCharacter);
+                        self.emit_token(Token::Text(String::from('\u{FFFD}')));
+                        self.at_line_start = false;
+                    }
+                    // EOF
+                    None => {
+                        self.emit_token(Token::Eof);
                         return Ok(());
                     }
-
-                    let preprended_block_token = self.get_preprended_block_token();
-
-                    if let Some(Token::Paragraph(_)) = preprended_block_token {
-                        self.append_block_token(Token::SoftBreak);
-                        self.append_block_token(Token::Paragraph(line.to_string()));
-                    } else if !line.starts_with('>') {
-                        self.flush_current_container(State::Document);
-                    } else {
-                        // TODO add some other kind of token
+                    // Anything else: Append to text buffer
+                    Some(c) => {
+                        self.validate_input_stream_character(c);
+                        self.buf.borrow_mut().push(c);
+                        self.state = State::Text;
+                        self.at_line_start = false;
                     }
                 }
-                None => self.flush_current_container(State::Inline),
-            },
-            // https://spec.commonmark.org/0.31.2/#list-items (5.2)
-            State::ListItem | State::ContinuedListItem => match self.consume_next_char() {
-                Some('\n') => self.state = State::ContinuedListItem,
-                Some(c) => {}
-                None => {
-                    self.state = State::Inline;
-                    self.reconsume();
-                }
-            },
-            // https://spec.commonmark.org/0.31.2/#lists (5.3)
-            State::List | State::ContinuedList => match self.consume_next_char() {
-                Some('\n') => self.state = State::ContinuedList,
-                Some(c) => {}
-                None => {
-                    self.state = State::Inline;
-                    self.reconsume();
-                }
-            },
-            // https://spec.commonmark.org/0.31.2/#phase-2-inline-structure
-            State::Inline => {
-                // https://spec.commonmark.org/0.31.2/#code-spans (6.1)
-                // TODO line buffer
-
-                // https://spec.commonmark.org/0.31.2/#emphasis-and-strong-emphasis (6.2)
-                // TODO doing this last (the most technicalities)
-
-                // https://spec.commonmark.org/0.31.2/#links (6.3)
-                // TODO line buffer
-
-                // https://spec.commonmark.org/0.31.2/#images (6.4)
-                // TODO line buffer
-
-                // https://spec.commonmark.org/0.31.2/#autolinks (6.5)
-                // TODO line buffer
-
-                // https://spec.commonmark.org/0.31.2/#raw-html (6.6)
-                // TODO line buffer
-
-                // https://spec.commonmark.org/0.31.2/#hard-line-breaks (6.7)
-                // TODO line buffer
-
-                // https://spec.commonmark.org/0.31.2/#soft-line-breaks (6.8)
-                // TODO line buffer
-
-                // https://spec.commonmark.org/0.31.2/#textual-content (6.9)
-                // self.append_block_token(Token::Paragraph(line.to_string()));
-
-                self.close_block_token();
-                self.emit_token(Token::Eof);
             }
-            _ => {}
+            State::Whitespace => {
+                match self.consume_next_char() {
+                    // Space: Increment count
+                    Some(' ') => {
+                        self.whitespace_count += 1;
+                    }
+                    // Tab: Emit spaces first, then tab
+                    Some('\t') => {
+                        if self.whitespace_count > 0 {
+                            let space_start = BytePos(self.token_start_pos.0);
+                            let space_end = BytePos(space_start.0 + self.whitespace_count);
+                            self.emit_token_with_span(
+                                Token::Space(self.whitespace_count),
+                                space_start,
+                                space_end,
+                            );
+                            self.whitespace_count = 0;
+                        }
+                        let tab_start = BytePos(self.input.cur_pos().0 - 1);
+                        self.emit_token_with_span(Token::Tab, tab_start, self.input.cur_pos());
+                        // Continue in whitespace state to collect more
+                    }
+                    // Else: Emit remaining spaces and switch to appropriate state
+                    _ => {
+                        if self.whitespace_count > 0 {
+                            let space_end = BytePos(self.token_start_pos.0 + self.whitespace_count);
+                            self.emit_token_with_span(
+                                Token::Space(self.whitespace_count),
+                                self.token_start_pos,
+                                space_end,
+                            );
+                            self.whitespace_count = 0;
+                        }
+                        // No longer at line start after processing whitespace
+                        self.at_line_start = false;
+                        self.reconsume_in_state(State::Data);
+                    }
+                }
+            }
+            State::Text => {
+                match self.consume_next_char() {
+                    // Markers: Check if we need to tokenize preceding whitespace
+                    Some(
+                        c @ ('#' | '>' | '-' | '*' | '_' | '`' | '~' | '[' | '!' | '<' | '=' | '|'),
+                    ) => {
+                        let text = self.buf.borrow().clone();
+                        if !text.is_empty() {
+                            // Check if text ends with whitespace - if so, separate it
+                            let (non_ws_text, whitespace) = self.split_trailing_whitespace(&text);
+
+                            if !non_ws_text.is_empty() {
+                                let text_end = if whitespace.is_empty() {
+                                    BytePos(self.input.cur_pos().0 - 1)
+                                } else {
+                                    BytePos(self.token_start_pos.0 + non_ws_text.len() as u32)
+                                };
+                                self.emit_token_with_span(
+                                    Token::Text(non_ws_text),
+                                    self.token_start_pos,
+                                    text_end,
+                                );
+                            }
+
+                            // Emit whitespace tokens if any
+                            if !whitespace.is_empty() {
+                                let ws_start = BytePos(
+                                    self.token_start_pos.0 + (text.len() - whitespace.len()) as u32,
+                                );
+                                self.emit_whitespace_tokens(&whitespace, ws_start);
+                            }
+
+                            self.buf.borrow_mut().clear();
+                        }
+
+                        // Now handle the marker
+                        self.temporary_buffer.clear();
+                        self.temporary_buffer.push(c);
+                        self.start_token();
+                        // Move back one character to include the marker in the token span
+                        self.token_start_pos = BytePos(self.input.cur_pos().0 - 1);
+                        self.state = State::Marker;
+                        self.at_line_start = false;
+                    }
+                    // Other special characters: Emit Text and reconsume
+                    Some('\n') | Some('\r') | Some('\\') | Some('&') => {
+                        let text = self.buf.borrow().clone();
+                        if !text.is_empty() {
+                            let text_end = BytePos(self.input.cur_pos().0 - 1);
+                            self.emit_token_with_span(
+                                Token::Text(text),
+                                self.token_start_pos,
+                                text_end,
+                            );
+                            self.buf.borrow_mut().clear();
+                        }
+                        self.reconsume_in_state(State::Data);
+                    }
+                    // EOF: Emit Text, then EOF
+                    None => {
+                        let text = self.buf.borrow().clone();
+                        if !text.is_empty() {
+                            self.emit_token_with_span(
+                                Token::Text(text),
+                                self.token_start_pos,
+                                self.input.cur_pos(),
+                            );
+                            self.buf.borrow_mut().clear();
+                        }
+                        self.start_token();
+                        self.emit_token(Token::Eof);
+                        return Ok(());
+                    }
+                    // Non-special char: Append to buffer
+                    Some(c) => {
+                        self.buf.borrow_mut().push(c);
+                    }
+                }
+            }
+            State::Escape => {
+                match self.consume_next_char() {
+                    // Escapable punctuation characters (per CommonMark 2.4)
+                    Some(c)
+                        if matches!(
+                            c,
+                            '!' | '"'
+                                | '#'
+                                | '$'
+                                | '%'
+                                | '&'
+                                | '\''
+                                | '('
+                                | ')'
+                                | '*'
+                                | '+'
+                                | ','
+                                | '-'
+                                | '.'
+                                | '/'
+                                | ':'
+                                | ';'
+                                | '<'
+                                | '='
+                                | '>'
+                                | '?'
+                                | '@'
+                                | '['
+                                | '\\'
+                                | ']'
+                                | '^'
+                                | '_'
+                                | '`'
+                                | '{'
+                                | '|'
+                                | '}'
+                                | '~'
+                        ) =>
+                    {
+                        self.emit_token(Token::BackslashEscape(c));
+                        self.state = State::Data;
+                        self.at_line_start = false;
+                    }
+                    // Newline: Hard break
+                    Some('\n') | Some('\r') => {
+                        self.emit_token(Token::BackslashEscape('\n'));
+                        self.state = State::Data;
+                        self.at_line_start = true;
+                    }
+                    // EOF: Emit '\\'
+                    None => {
+                        self.emit_token(Token::Text(String::from("\\")));
+                        self.start_token();
+                        self.emit_token(Token::Eof);
+                        return Ok(());
+                    }
+                    // Else: Emit '\\' + char
+                    Some(_c) => {
+                        self.emit_token(Token::Text(String::from("\\")));
+                        self.reconsume_in_state(State::Data);
+                        self.at_line_start = false;
+                    }
+                }
+            }
+            State::Entity => {
+                match self.consume_next_char() {
+                    // Alphanumeric: Buffer name
+                    Some(c) if c.is_alphanumeric() => {
+                        self.temporary_buffer.clear();
+                        self.temporary_buffer.push(c);
+                        self.state = State::NamedEntity;
+                    }
+                    // '#': Numeric entity
+                    Some('#') => {
+                        self.state = State::NumericEntity;
+                    }
+                    // Else: Emit '&', reconsume
+                    _ => {
+                        self.emit_token(Token::Text(String::from("&")));
+                        self.reconsume_in_state(self.return_state.clone());
+                    }
+                }
+            }
+            State::NamedEntity => {
+                match self.consume_next_char() {
+                    // Continue entity name
+                    Some(c) if c.is_alphanumeric() || matches!(c, '.' | '-' | '_' | ':') => {
+                        self.temporary_buffer.push(c);
+                    }
+                    // ';': Try to resolve entity
+                    Some(';') => {
+                        let entity_name = self.temporary_buffer.clone();
+                        // Look up in HTML entities
+                        if let Some(entity) = HTML_ENTITIES.get(entity_name.as_str()) {
+                            self.emit_token(Token::Entity(entity.characters.to_string()));
+                        } else {
+                            // Unknown entity: emit as text
+                            self.emit_error(ErrorKind::UnknownNamedCharacterReference);
+                            self.emit_token(Token::Text(format!("&{entity_name};")));
+                        }
+                        self.state = self.return_state.clone();
+                    }
+                    // Else: Missing semicolon error
+                    _ => {
+                        self.emit_error(ErrorKind::MissingSemicolonAfterCharacterReference);
+                        self.emit_token(Token::Text(format!("&{}", self.temporary_buffer)));
+                        self.reconsume_in_state(self.return_state.clone());
+                    }
+                }
+            }
+            State::NumericEntity => {
+                match self.consume_next_char() {
+                    // 'x' or 'X': Hex mode
+                    Some('x') | Some('X') => {
+                        self.character_reference_code = Some(vec![]);
+                        self.state = State::HexEntity;
+                    }
+                    // Digit: Decimal mode
+                    Some(c) if c.is_ascii_digit() => {
+                        self.character_reference_code =
+                            Some(vec![(0, c.to_digit(10).unwrap(), None)]);
+                        self.state = State::DecimalEntity;
+                    }
+                    // Else: Error
+                    _ => {
+                        self.emit_error(ErrorKind::AbsenceOfDigitsInNumericCharacterReference);
+                        self.reconsume_in_state(self.return_state.clone());
+                    }
+                }
+            }
+            State::HexEntity => {
+                match self.consume_next_char() {
+                    // Hex digit: Accumulate
+                    Some(c) if c.is_ascii_hexdigit() => {
+                        if let Some(ref mut codes) = self.character_reference_code {
+                            let val = c.to_digit(16).unwrap();
+                            if codes.is_empty() {
+                                codes.push((0, val, None));
+                            } else {
+                                codes[0].1 = codes[0].1 * 16 + val;
+                            }
+                        }
+                    }
+                    // ';': Validate and emit
+                    Some(';') => {
+                        self.validate_and_emit_numeric_entity();
+                        self.state = self.return_state.clone();
+                    }
+                    // Else: Missing semicolon
+                    _ => {
+                        self.emit_error(ErrorKind::MissingSemicolonAfterCharacterReference);
+                        self.validate_and_emit_numeric_entity();
+                        self.reconsume_in_state(self.return_state.clone());
+                    }
+                }
+            }
+            State::DecimalEntity => {
+                match self.consume_next_char() {
+                    // Decimal digit: Accumulate
+                    Some(c) if c.is_ascii_digit() => {
+                        if let Some(ref mut codes) = self.character_reference_code {
+                            let val = c.to_digit(10).unwrap();
+                            codes[0].1 = codes[0].1 * 10 + val;
+                        }
+                    }
+                    // ';': Validate and emit
+                    Some(';') => {
+                        self.validate_and_emit_numeric_entity();
+                        self.state = self.return_state.clone();
+                    }
+                    // Else: Missing semicolon
+                    _ => {
+                        self.emit_error(ErrorKind::MissingSemicolonAfterCharacterReference);
+                        self.validate_and_emit_numeric_entity();
+                        self.reconsume_in_state(self.return_state.clone());
+                    }
+                }
+            }
+            State::Marker => {
+                match self.consume_next_char() {
+                    // Continue marker sequence
+                    Some(c)
+                        if !self.temporary_buffer.is_empty()
+                            && c == self.temporary_buffer.chars().next().unwrap() =>
+                    {
+                        self.temporary_buffer.push(c);
+                    }
+                    // Whitespace after marker: emit marker, then whitespace tokens
+                    Some(c @ (' ' | '\t')) => {
+                        let marker_char = self.temporary_buffer.chars().next().unwrap();
+                        let count = self.temporary_buffer.len() as u32;
+                        let marker_end = BytePos(self.token_start_pos.0 + count);
+                        self.emit_token_with_span(
+                            Token::Marker(marker_char, count),
+                            self.token_start_pos,
+                            marker_end,
+                        );
+
+                        // Now handle whitespace after marker
+                        let whitespace = String::from(c);
+                        let ws_start = BytePos(self.input.cur_pos().0 - 1);
+                        self.emit_whitespace_tokens(&whitespace, ws_start);
+                        self.whitespace_count = 0; // Reset for further whitespace collection
+                        self.state = State::Whitespace; // Continue collecting whitespace
+                        self.at_line_start = false;
+                    }
+                    // Complete marker or switch to different handling
+                    _ => {
+                        let marker_char = self.temporary_buffer.chars().next().unwrap();
+                        let count = self.temporary_buffer.len() as u32;
+                        let marker_end = BytePos(self.token_start_pos.0 + count);
+                        self.emit_token_with_span(
+                            Token::Marker(marker_char, count),
+                            self.token_start_pos,
+                            marker_end,
+                        );
+                        self.reconsume_in_state(State::Data);
+                        self.at_line_start = false;
+                    }
+                }
+            }
         }
 
         Ok(())
-    }
-
-    #[inline(always)]
-    fn skip_whitespaces(&mut self, c: char) {
-        if c == '\r' && self.input.cur() == Some('\n') {
-            unsafe {
-                // Safety: cur() is Some
-                self.input.bump();
-            }
-        }
     }
 }
 
@@ -710,47 +842,6 @@ fn is_noncharacter(c: u32) -> bool {
 }
 
 #[inline(always)]
-fn is_upper_hex_digit(c: char) -> bool {
-    matches!(c, '0'..='9' | 'A'..='F')
-}
-
-#[inline(always)]
-fn is_lower_hex_digit(c: char) -> bool {
-    matches!(c, '0'..='9' | 'a'..='f')
-}
-
-#[inline(always)]
-fn is_ascii_hex_digit(c: char) -> bool {
-    is_upper_hex_digit(c) || is_lower_hex_digit(c)
-}
-
-#[inline(always)]
-fn is_ascii_upper_alpha(c: char) -> bool {
-    c.is_ascii_uppercase()
-}
-
-#[inline(always)]
-fn is_ascii_lower_alpha(c: char) -> bool {
-    c.is_ascii_lowercase()
-}
-
-#[inline(always)]
-fn is_ascii_alpha(c: char) -> bool {
-    is_ascii_upper_alpha(c) || is_ascii_lower_alpha(c)
-}
-
-#[inline(always)]
 fn is_allowed_control_character(c: u32) -> bool {
     c != 0x00 && is_control(c)
-}
-
-#[inline(always)]
-fn is_allowed_character(c: char) -> bool {
-    let c = c as u32;
-
-    if is_surrogate(c) || is_allowed_control_character(c) || is_noncharacter(c) {
-        return false;
-    }
-
-    return true;
 }

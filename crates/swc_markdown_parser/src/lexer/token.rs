@@ -1,31 +1,21 @@
-use swc_atoms::Atom;
-use swc_common::{EqIgnoreSpan, Span};
+use swc_common::Span;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, EqIgnoreSpan)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TokenAndSpan {
     pub span: Span,
     pub token: Token,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, EqIgnoreSpan)]
-pub enum Raw {
-    Same,
-    Atom(Atom),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, EqIgnoreSpan)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Token {
-    Document,
-    SoftBreak,
-    ThematicBreak,
-    Heading { level: u8, value: String },
-    Paragraph(String),
-    Block { block: Block, children: Vec<Token> },
-    Character { value: char, raw: Option<Raw> },
+    // Whitespace tokens
+    Tab,                   // Tab character (equivalent to 4 spaces)
+    Space(u32),            // Run of spaces (count)
+    Newline,               // Line break (normalized to \n)
+    Marker(char, u32),     // Potential block markers (e.g., '#', 3)
+    Text(String),          // Sequence of non-special chars
+    BackslashEscape(char), // Escaped char (e.g., \\punct)
+    Entity(String),        // Resolved entity (e.g., &amp; -> '&')
+    Raw(char),             // Uninterpreted chars in code/HTML contexts
     Eof,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, EqIgnoreSpan)]
-pub enum Block {
-    ThematicBreak(Atom),
 }

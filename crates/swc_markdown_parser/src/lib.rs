@@ -1,4 +1,4 @@
-pub mod lexer;
-pub mod parser;
-
 mod error;
+pub mod lexer;
+mod parser;
+pub(crate) mod spec;
