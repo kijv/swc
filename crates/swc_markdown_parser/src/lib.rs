@@ -1,3 +1,3 @@
-mod error;
+mod diagnostic;
 pub mod lexer;
 mod parser;

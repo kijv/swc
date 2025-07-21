@@ -5,7 +5,7 @@ use swc_html_utils::HTML_ENTITIES;
 
 use self::token::{Token, TokenAndSpan};
 use crate::{
-    error::{Error, ErrorKind},
+    diagnostic::{Diagnostic, DiagnosticKind},
     parser::input::ParserInput,
 };
 
@@ -25,7 +25,7 @@ pub enum State {
     Marker,        // Potential block marker
 }
 
-pub(crate) type LexResult<T> = Result<T, ErrorKind>;
+pub(crate) type LexResult<T> = Result<T, DiagnosticKind>;
 
 pub struct Lexer<'a, I>
 where
@@ -38,7 +38,7 @@ where
     finished: bool,
     state: State,
     return_state: State,
-    errors: Vec<Error>,
+    diagnostics: Vec<Diagnostic>,
     pending_tokens: VecDeque<TokenAndSpan>,
     buf: Rc<RefCell<String>>,
     whitespace_count: u32,
@@ -63,7 +63,7 @@ where
             finished: false,
             state: State::Data,
             return_state: State::Data,
-            errors: Vec::new(),
+            diagnostics: Vec::new(),
             pending_tokens: VecDeque::with_capacity(16),
             buf: Rc::new(RefCell::new(String::with_capacity(256))),
             whitespace_count: 0,
@@ -108,8 +108,8 @@ where
         self.input.last_pos()
     }
 
-    fn take_errors(&mut self) -> Vec<Error> {
-        take(&mut self.errors)
+    fn take_diagnostics(&mut self) -> Vec<Diagnostic> {
+        take(&mut self.diagnostics)
     }
 
     fn set_input_state(&mut self, state: State) {
@@ -163,8 +163,8 @@ where
     }
 
     #[cold]
-    fn emit_error(&mut self, kind: ErrorKind) {
-        self.errors.push(Error::new(
+    fn emit_diagnostic(&mut self, kind: DiagnosticKind) {
+        self.diagnostics.push(Diagnostic::new(
             Span::new(self.cur_pos, self.input.cur_pos()),
             kind,
         ));
@@ -196,7 +196,7 @@ where
                 let final_char = if code_point == 0 {
                     '\u{FFFD}'
                 } else if code_point > 0x10ffff {
-                    self.emit_error(ErrorKind::CharacterReferenceOutsideUnicodeRange);
+                    self.emit_diagnostic(DiagnosticKind::CharacterReferenceOutsideUnicodeRange);
                     '\u{FFFD}'
                 } else {
                     char::from_u32(code_point).unwrap_or('\u{FFFD}')
@@ -269,7 +269,7 @@ where
 
     fn read_token_and_span(&mut self) -> LexResult<TokenAndSpan> {
         if self.finished {
-            return Err(ErrorKind::Eof);
+            return Err(DiagnosticKind::Eof);
         } else {
             while self.pending_tokens.is_empty() {
                 self.run()?;
@@ -282,7 +282,7 @@ where
             Token::Eof => {
                 self.finished = true;
 
-                Err(ErrorKind::Eof)
+                Err(DiagnosticKind::Eof)
             }
             _ => Ok(token_and_span),
         }
@@ -546,14 +546,16 @@ where
                             self.emit_token(Token::Entity(entity.characters.to_string()));
                         } else {
                             // Unknown entity: emit as text
-                            self.emit_error(ErrorKind::UnknownNamedCharacterReference);
+                            self.emit_diagnostic(DiagnosticKind::UnknownNamedCharacterReference);
                             self.emit_token(Token::Text(format!("&{entity_name};")));
                         }
                         self.state = self.return_state.clone();
                     }
                     // Else: Missing semicolon error
                     _ => {
-                        self.emit_error(ErrorKind::MissingSemicolonAfterCharacterReference);
+                        self.emit_diagnostic(
+                            DiagnosticKind::MissingSemicolonAfterCharacterReference,
+                        );
                         self.emit_token(Token::Text(format!("&{}", self.temporary_buffer)));
                         self.reconsume_in_state(self.return_state.clone());
                     }
@@ -574,7 +576,9 @@ where
                     }
                     // Else: Error
                     _ => {
-                        self.emit_error(ErrorKind::AbsenceOfDigitsInNumericCharacterReference);
+                        self.emit_diagnostic(
+                            DiagnosticKind::AbsenceOfDigitsInNumericCharacterReference,
+                        );
                         self.reconsume_in_state(self.return_state.clone());
                     }
                 }
@@ -599,7 +603,9 @@ where
                     }
                     // Else: Missing semicolon
                     _ => {
-                        self.emit_error(ErrorKind::MissingSemicolonAfterCharacterReference);
+                        self.emit_diagnostic(
+                            DiagnosticKind::MissingSemicolonAfterCharacterReference,
+                        );
                         self.validate_and_emit_numeric_entity();
                         self.reconsume_in_state(self.return_state.clone());
                     }
@@ -621,7 +627,9 @@ where
                     }
                     // Else: Missing semicolon
                     _ => {
-                        self.emit_error(ErrorKind::MissingSemicolonAfterCharacterReference);
+                        self.emit_diagnostic(
+                            DiagnosticKind::MissingSemicolonAfterCharacterReference,
+                        );
                         self.validate_and_emit_numeric_entity();
                         self.reconsume_in_state(self.return_state.clone());
                     }
