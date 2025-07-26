@@ -1,11 +1,10 @@
 use std::{cell::RefCell, char::REPLACEMENT_CHARACTER, collections::VecDeque, mem::take, rc::Rc};
 
 use swc_common::{input::Input, BytePos, Span};
-use swc_html_utils::HTML_ENTITIES;
 
 use self::token::{Token, TokenAndSpan};
 use crate::{
-    diagnostic::{Diagnostic, DiagnosticKind},
+    error::{Error, ErrorKind},
     parser::input::ParserInput,
 };
 
@@ -13,42 +12,67 @@ pub mod token;
 
 #[derive(Debug, Clone)]
 pub enum State {
-    Data,          // Initial state for general content
-    Whitespace,    // Accumulating spaces/tabs
-    Text,          // Building text token
-    Escape,        // After backslash
-    Entity,        // After '&'
-    NamedEntity,   // Named entity accumulation
-    NumericEntity, // After '&#'
-    HexEntity,     // Hex numeric entity
-    DecimalEntity, // Decimal numeric entity
-    Marker,        // Potential block marker
+    Data,
+    ThematicBreak,
+    ATXHeading,
+    SetextHeading,
+    IndentedCodeBlock,
+    IndentedCodeChunk,
+    FencedCodeBlock,
+    HTMLBlock,
+    HTMLTagName,
+    BeforeHTMLBlockType1,
+    HTMLBlockType1,
+    HTMLDeclarationOpen,
+    HTMLComment,
+    HTMLProcessingInstruction,
+    HTMLDeclaration,
+    HTMLCDATASection,
+    HTMLBlockType6,
+    HTMLOpenTagName,
+    HTMLClosingTagName,
+    HTMLClosingTag,
+    HTMLBlankLine,
+    HTMLAttributes,
+    AfterHTMLAttributes,
+    HTMLAttribute,
+    HTMLAttributeName,
+    HTMLAttributeValueSpecification,
+    HTMLAttributeValue,
+    HTMLUnquotedAttribute,
+    HTMLSingleQuotedAttribute,
+    HTMLDoubleQuotedAttribute,
+    LinkLabel,
+    AfterLinkLabel,
+    LinkDestination,
+    BracedLinkDestination,
+    UnquotedLinkDestination,
+    BalancedParenthesisPairState,
+    BeforeLinkTitle,
+    DoubleQuotedLinkTitle,
+    SingleQuotedLinkTitle,
+    ParentheticalLinkTitle,
+    AfterLinkTitle,
 }
 
-pub(crate) type LexResult<T> = Result<T, DiagnosticKind>;
+pub(crate) type LexResult<T> = Result<T, ErrorKind>;
 
-pub struct Lexer<'a, I>
-where
-    I: Input<'a>,
-{
+pub struct Lexer<I> {
     input: I,
     cur: Option<char>,
     cur_pos: BytePos,
-    token_start_pos: BytePos,
+    last_token_pos: BytePos,
     finished: bool,
     state: State,
-    return_state: State,
-    diagnostics: Vec<Diagnostic>,
+    errors: Vec<Error>,
     pending_tokens: VecDeque<TokenAndSpan>,
     buf: Rc<RefCell<String>>,
-    whitespace_count: u32,
-    character_reference_code: Option<Vec<(u8, u32, Option<char>)>>,
+    sub_buf: Rc<RefCell<String>>,
     temporary_buffer: String,
-    at_line_start: bool,
-    phantom: std::marker::PhantomData<&'a ()>,
+    line_ending_count: u32,
 }
 
-impl<'a, I> Lexer<'a, I>
+impl<'a, I> Lexer<I>
 where
     I: Input<'a>,
 {
@@ -59,18 +83,15 @@ where
             input,
             cur: None,
             cur_pos: start_pos,
-            token_start_pos: start_pos,
+            last_token_pos: start_pos,
             finished: false,
             state: State::Data,
-            return_state: State::Data,
-            diagnostics: Vec::new(),
+            errors: Vec::new(),
             pending_tokens: VecDeque::with_capacity(16),
             buf: Rc::new(RefCell::new(String::with_capacity(256))),
-            whitespace_count: 0,
-            character_reference_code: None,
+            sub_buf: Rc::new(RefCell::new(String::with_capacity(256))),
             temporary_buffer: String::with_capacity(33),
-            at_line_start: true, // Start at beginning of input
-            phantom: std::marker::PhantomData,
+            line_ending_count: 0,
         };
 
         // A leading Byte Order Mark (BOM) causes the character encoding argument to be
@@ -86,17 +107,24 @@ where
     }
 }
 
-impl<'a, I: Input<'a>> Iterator for Lexer<'a, I> {
+impl<'a, I: Input<'a>> Iterator for Lexer<I> {
     type Item = TokenAndSpan;
 
     fn next(&mut self) -> Option<Self::Item> {
         let token_and_span = self.read_token_and_span();
 
-        token_and_span.ok()
+        match token_and_span {
+            Ok(token_and_span) => {
+                return Some(token_and_span);
+            }
+            Err(..) => {
+                return None;
+            }
+        }
     }
 }
 
-impl<'a, I> ParserInput for Lexer<'a, I>
+impl<'a, I> ParserInput for Lexer<I>
 where
     I: Input<'a>,
 {
@@ -108,8 +136,8 @@ where
         self.input.last_pos()
     }
 
-    fn take_diagnostics(&mut self) -> Vec<Diagnostic> {
-        take(&mut self.diagnostics)
+    fn take_errors(&mut self) -> Vec<Error> {
+        take(&mut self.errors)
     }
 
     fn set_input_state(&mut self, state: State) {
@@ -117,7 +145,7 @@ where
     }
 }
 
-impl<'a, I> Lexer<'a, I>
+impl<'a, I> Lexer<I>
 where
     I: Input<'a>,
 {
@@ -140,12 +168,17 @@ where
     }
 
     #[inline(always)]
-    fn reconsume_in_state(&mut self, state: State) {
-        self.state = state;
+    fn reconsume(&mut self) {
         unsafe {
             // Safety: self.cur_pos is valid position because we got it from self.input
             self.input.reset_to(self.cur_pos);
         }
+    }
+
+    #[inline(always)]
+    fn reconsume_in_state(&mut self, state: State) {
+        self.state = state;
+        self.reconsume();
     }
 
     #[inline(always)]
@@ -163,113 +196,44 @@ where
     }
 
     #[cold]
-    fn emit_diagnostic(&mut self, kind: DiagnosticKind) {
-        self.diagnostics.push(Diagnostic::new(
+    fn emit_error(&mut self, kind: ErrorKind) {
+        self.errors.push(Error::new(
             Span::new(self.cur_pos, self.input.cur_pos()),
             kind,
         ));
     }
 
     #[inline(always)]
-    fn start_token(&mut self) {
-        self.token_start_pos = self.input.cur_pos();
-    }
-
-    #[inline(always)]
     fn emit_token(&mut self, token: Token) {
-        let span = Span::new(self.token_start_pos, self.input.cur_pos());
+        let cur_pos = self.input.cur_pos();
+
+        let span = Span::new(self.last_token_pos, cur_pos);
+
+        self.last_token_pos = cur_pos;
         self.pending_tokens.push_back(TokenAndSpan { span, token });
     }
 
-    #[inline(always)]
-    fn emit_token_with_span(&mut self, token: Token, start: BytePos, end: BytePos) {
-        let span = Span::new(start, end);
-        self.pending_tokens.push_back(TokenAndSpan { span, token });
-    }
+    // fn consume_and_append_to_doctype_token_name<F>(&mut self, c: char, f: F)
+    // where
+    //     F: Fn(char) -> bool,
+    // {
+    //     let b = self.buf.clone();
+    //     let mut buf = b.borrow_mut();
+    //     let b = self.sub_buf.clone();
+    //     let mut sub_buf = b.borrow_mut();
 
-    fn validate_and_emit_numeric_entity(&mut self) {
-        if let Some(ref codes) = self.character_reference_code {
-            if let Some((_, code_point, _)) = codes.first() {
-                let code_point = *code_point;
+    //     buf.push(c.to_ascii_lowercase());
+    //     sub_buf.push(c);
 
-                // Simplified validation - replace NULL and handle out of range
-                let final_char = if code_point == 0 {
-                    '\u{FFFD}'
-                } else if code_point > 0x10ffff {
-                    self.emit_diagnostic(DiagnosticKind::CharacterReferenceOutsideUnicodeRange);
-                    '\u{FFFD}'
-                } else {
-                    char::from_u32(code_point).unwrap_or('\u{FFFD}')
-                };
+    //     let value = self.input.uncons_while(f);
 
-                self.emit_token(Token::Entity(String::from(final_char)));
-            }
-        }
-        self.character_reference_code = None;
-    }
-
-    fn split_trailing_whitespace(&self, text: &str) -> (String, String) {
-        let mut non_ws_end = text.len();
-        let mut ws_start = text.len();
-
-        for (i, c) in text.char_indices().rev() {
-            if is_space(c) || is_tab(c) {
-                non_ws_end = i;
-            } else {
-                ws_start = non_ws_end;
-                break;
-            }
-        }
-
-        if ws_start == 0 {
-            // All whitespace
-            (String::new(), text.to_string())
-        } else if ws_start == text.len() {
-            // No trailing whitespace
-            (text.to_string(), String::new())
-        } else {
-            // Mixed content
-            (text[..ws_start].to_string(), text[ws_start..].to_string())
-        }
-    }
-
-    fn emit_whitespace_tokens(&mut self, whitespace: &str, start_pos: BytePos) {
-        let mut space_count = 0;
-        let mut current_pos = start_pos;
-
-        for c in whitespace.chars() {
-            match c {
-                c if is_space(c) => space_count += 1,
-                c if is_tab(c) => {
-                    // Emit accumulated spaces first
-                    if space_count > 0 {
-                        let space_end = BytePos(current_pos.0 + space_count);
-                        self.emit_token_with_span(
-                            Token::Space(space_count),
-                            current_pos,
-                            space_end,
-                        );
-                        current_pos = space_end;
-                        space_count = 0;
-                    }
-                    let tab_end = BytePos(current_pos.0 + 1);
-                    self.emit_token_with_span(Token::Tab, current_pos, tab_end);
-                    current_pos = tab_end;
-                }
-                _ => {} // Ignore non-whitespace (shouldn't happen)
-            }
-        }
-
-        // Emit remaining spaces
-        if space_count > 0 {
-            let space_end = BytePos(current_pos.0 + space_count);
-            self.emit_token_with_span(Token::Space(space_count), current_pos, space_end);
-        }
-    }
+    //     buf.push_str(&value.to_ascii_lowercase());
+    //     sub_buf.push_str(value);
+    // }
 
     fn read_token_and_span(&mut self) -> LexResult<TokenAndSpan> {
         if self.finished {
-            return Err(DiagnosticKind::Eof);
+            return Err(ErrorKind::Eof);
         } else {
             while self.pending_tokens.is_empty() {
                 self.run()?;
@@ -282,399 +246,1466 @@ where
             Token::Eof => {
                 self.finished = true;
 
-                Err(DiagnosticKind::Eof)
+                return Err(ErrorKind::Eof);
             }
-            _ => Ok(token_and_span),
+            _ => {
+                return Ok(token_and_span);
+            }
         }
     }
 
     fn run(&mut self) -> LexResult<()> {
         match self.state {
             State::Data => {
-                self.start_token();
                 // Consume the next input character:
                 match self.consume_next_char() {
-                    // Space or tab: Handle differently based on line position
-                    Some(c) if is_space(c) || is_tab(c) => {
-                        if self.at_line_start {
-                            // At line start: treat as whitespace
-                            // Set token start to beginning of whitespace
-                            self.token_start_pos = BytePos(self.input.cur_pos().0 - 1);
-                            if is_space(c) {
-                                self.whitespace_count = 1;
-                            } else {
-                                // Tab: emit immediately
-                                self.emit_token(Token::Tab);
-                                self.at_line_start = false;
-                                return Ok(());
-                            }
-                            self.state = State::Whitespace;
+                    // U+003D EQUALS SIGN (=)
+                    // U+002D HYPHEN-MINUS (-)
+                    Some(c) if c == '=' || c == '-' => {
+                        if self.temporary_buffer.is_empty() {
+                            self.state = State::ThematicBreak;
                         } else {
-                            // Mid-line: add to text buffer
-                            self.buf.borrow_mut().push(c);
-                            self.state = State::Text;
+                            self.state = State::SetextHeading;
                         }
-                    }
-                    // '\n' or '\r': Normalize and emit Newline
-                    Some('\n') => {
-                        self.emit_token(Token::Newline);
-                        self.at_line_start = true;
-                    }
-                    Some('\r') => {
-                        // Normalize \r\n or \r to \n
-                        if self.input.cur() == Some('\n') {
-                            self.consume();
-                        }
-                        self.emit_token(Token::Newline);
-                        self.at_line_start = true;
-                    }
-                    // '\\': Switch to EscapeState
-                    Some('\\') => {
-                        self.state = State::Escape;
-                        self.at_line_start = false;
-                    }
-                    // '&': Switch to EntityState
-                    Some('&') => {
-                        self.return_state = State::Data;
-                        self.state = State::Entity;
-                        self.at_line_start = false;
-                    }
-                    // Potential markers
-                    Some(
-                        c @ ('#' | '>' | '-' | '*' | '_' | '`' | '~' | '[' | '!' | '<' | '=' | '|'),
-                    ) => {
-                        self.temporary_buffer.clear();
+
                         self.temporary_buffer.push(c);
-                        self.state = State::Marker;
-                        self.at_line_start = false;
                     }
-                    // U+0000 NULL: Replace with replacement character
-                    Some('\x00') => {
-                        self.emit_token(Token::Text(String::from(REPLACEMENT_CHARACTER)));
-                        self.at_line_start = false;
+                    // U+002A ASTERISK (*)
+                    // U+005F LOW LINE (_)
+                    Some(c) if c == '*' || c == '_' => {
+                        if self.temporary_buffer.len() == 2
+                            && self.temporary_buffer.chars().all(|buf_c| buf_c == c)
+                        {
+                            self.state = State::ThematicBreak;
+                        } else {
+                            let leading_space_count = self
+                                .temporary_buffer
+                                .chars()
+                                .take_while(|c| *c == '\x20')
+                                .count();
+
+                            if (0..=3).contains(&leading_space_count) && {
+                                let remaining_temporary_buffer = self
+                                    .temporary_buffer
+                                    .chars()
+                                    .skip(leading_space_count)
+                                    .collect::<String>();
+
+                                !remaining_temporary_buffer.is_empty()
+                                    && remaining_temporary_buffer.chars().all(|buf_c| buf_c == c)
+                            } {
+                                self.state = State::ThematicBreak;
+                            }
+                        }
+
+                        self.temporary_buffer.push(c);
+                    }
+                    // U+0020 SPACE
+                    Some(c) if c == '\x20' => {
+                        if self.temporary_buffer == "\x20".repeat(3) {
+                            self.state = State::IndentedCodeChunk;
+                            self.temporary_buffer.clear();
+                        } else {
+                            let leading_space_count = self
+                                .temporary_buffer
+                                .chars()
+                                .take_while(|c| *c == '\x20')
+                                .count();
+
+                            let remaining_temporary_buffer = self
+                                .temporary_buffer
+                                .chars()
+                                .skip(leading_space_count)
+                                .collect::<String>();
+
+                            if (0..=3).contains(&leading_space_count)
+                                && !remaining_temporary_buffer.is_empty()
+                                && remaining_temporary_buffer.chars().all(|c| c == '#')
+                            {
+                                self.state = State::ATXHeading;
+                                self.temporary_buffer = remaining_temporary_buffer;
+                            } else {
+                                self.temporary_buffer.push(c);
+                            }
+                        }
+                    }
+                    // U+0009 CHARACTER TABULATION (tab)
+                    Some(c) if c == '\x09' => {
+                        if self.temporary_buffer.is_empty() {
+                            self.state = State::IndentedCodeBlock;
+                            self.temporary_buffer.clear();
+                        } else {
+                            let leading_space_count = self
+                                .temporary_buffer
+                                .chars()
+                                .take_while(|c| *c == '\x20')
+                                .count();
+                            let remaining_temporary_buffer = &self.temporary_buffer;
+
+                            if (1..=3).contains(&leading_space_count) {
+                                if remaining_temporary_buffer.chars().all(|c| c == '#') {
+                                    self.state = State::ATXHeading;
+                                }
+                            } else {
+                                self.temporary_buffer.push(c);
+                            }
+                        }
+                    }
+                    // U+0060 GRAVE ACCENT (`)
+                    // U+007E TILDE (~)
+                    Some(c) if c == '`' || c == '~' => {
+                        if self.temporary_buffer.len() == 2
+                            && self.temporary_buffer.chars().all(|buf_c| buf_c == c)
+                        {
+                            self.state = State::FencedCodeBlock;
+                        }
+
+                        self.temporary_buffer.push(c);
+                    }
+                    // U+005B LEFT SQUARE BRACKET ([)
+                    Some(c) if c == '[' => {
+                        if (0..=3).contains(&self.temporary_buffer.len())
+                            && (0..=3).contains(
+                                &self
+                                    .temporary_buffer
+                                    .chars()
+                                    .take_while(|c| *c == '\x20')
+                                    .count(),
+                            )
+                        {
+                            self.state = State::LinkLabel;
+                            self.line_ending_count = 0;
+                            self.temporary_buffer.clear();
+                        }
+
+                        self.temporary_buffer.push(c);
+                    }
+                    // U+003E GREATER-THAN SIGN (>)
+                    Some(c) if c == '>' => {
+                        if (0..=3).contains(&self.temporary_buffer.len())
+                            && self.temporary_buffer.chars().all(|c| c == '\x20')
+                        {
+                            self.emit_token(Token::BlockQuoteStart);
+                        } else {
+                            self.temporary_buffer.push(c);
+                        }
+                    }
+                    // U+000A LINE FEED (LF)
+                    // U+000D CARRIAGE RETURN (CR)
+                    Some(c) if is_line_ending(c) => {
+                        self.skip_whitespaces(c);
+
+                        if self.temporary_buffer.ends_with('\n') {
+                            self.emit_token(Token::Paragraph(self.temporary_buffer.to_owned()));
+                            self.emit_token(Token::BlankLine); // TODO do this better
+                            self.temporary_buffer.clear();
+                        } else if !self.temporary_buffer.is_empty() {
+                            self.temporary_buffer.push(c);
+                        } else {
+                            self.last_token_pos = self.input.cur_pos();
+                        }
+                    }
+                    // U+0000 NULL
+                    Some('\x00') => self.temporary_buffer.push(REPLACEMENT_CHARACTER),
+                    // EOF
+                    None => {
+                        if !self.temporary_buffer.is_empty() {
+                            self.emit_token(Token::Paragraph(self.temporary_buffer.to_owned()));
+                            self.temporary_buffer.clear();
+                        }
+
+                        self.emit_token(Token::Eof);
+
+                        return Ok(());
+                    }
+                    // Anything else
+                    Some(c) => {
+                        self.temporary_buffer.push(c);
+                    }
+                }
+            }
+            State::ThematicBreak => {
+                // Consume the next input character:
+                match self.consume_next_char() {
+                    // U+000A LINE FEED (LF)
+                    // U+000D CARRIAGE RETURN (CR)
+                    // EOF
+                    Some('\x0a') | Some('\x0d') | None => {
+                        dbg!(&self.temporary_buffer);
+                        self.reconsume_in_state(State::Data);
+                        self.emit_token(Token::ThematicBreak);
+                        self.temporary_buffer.clear();
+                    }
+                    // Unicode whitespace
+                    Some(c) if is_spacy(c) => {
+                        // Ignore the character.
+                    }
+                    // Anything else
+                    Some(c) => {
+                        if self.temporary_buffer.chars().any(|buf_c| buf_c == c) {
+                            // Ignore the character.
+                        } else {
+                            self.reconsume_in_state(State::Data);
+                        }
+                    }
+                }
+            }
+            State::ATXHeading => {
+                // Consume the maximum amount of characters possible, until a
+                // U+000A LINE FEED (LF) character is the current input
+                // character. Append each character to the temporary buffer when
+                // it’s consumed.
+                let mut s = self.temporary_buffer.clone();
+
+                while let Some(c) = self.consume_next_char() {
+                    if is_line_ending(c) {
+                        break;
+                    }
+
+                    s.push(c);
+                }
+
+                let closing_hashes_count = s.chars().rev().take_while(|c| *c == '#').count();
+
+                if (1..=6).contains(&closing_hashes_count) {
+                    // Remove the matched characters from the temporary buffer.
+                    s.truncate(self.temporary_buffer.len() - closing_hashes_count);
+                }
+
+                let level = s.chars().take(6).take_while(|c| *c == '#').count();
+
+                s = s.chars().skip_while(|c| *c == '#').collect::<String>();
+
+                self.emit_token(Token::ATXHeading {
+                    level: level as u8,
+                    content: s,
+                });
+
+                self.state = State::Data;
+
+                self.temporary_buffer.clear();
+
+                return Ok(());
+            }
+            State::SetextHeading => {
+                // Consume the next input character:
+                match self.consume_next_char() {
+                    // U+000A LINE FEED (LF)
+                    // EOF
+                    Some('\x0a') | None => {
+                        let level = if self.temporary_buffer.chars().next().unwrap() == '=' {
+                            1
+                        } else {
+                            2
+                        };
+
+                        self.emit_token(Token::SetextHeading {
+                            level,
+                            content: self.temporary_buffer.to_owned(),
+                        });
+                    }
+                    // Unicode whitespace
+                    Some(c) if is_spacy(c) => {
+                        self.state = State::ThematicBreak;
+                    }
+                    // Anything else
+                    Some(c) => {
+                        self.reconsume_in_state(State::Data);
+                    }
+                }
+            }
+            State::IndentedCodeBlock => {
+                // Consume the next input character:
+                match self.consume_next_char() {
+                    // U+0020 SPACE
+                    Some(c) if c == '\x20' => {
+                        if self.temporary_buffer == "\x20".repeat(3) {
+                            self.state = State::IndentedCodeChunk;
+                            self.temporary_buffer.clear();
+                        } else {
+                            self.temporary_buffer.push(c);
+                        }
+                    }
+                    // U+0009 CHARACTER TABULATION (tab)
+                    Some(c) if c == '\x09' => {
+                        if self.temporary_buffer.is_empty() {
+                            self.state = State::IndentedCodeChunk;
+                        }
+                    }
+                    // Anything else
+                    None | Some(_) => {
+                        if !self.temporary_buffer.is_empty() {
+                            self.emit_token(Token::IndentedCodeBlock(
+                                self.temporary_buffer.to_owned(),
+                            ));
+                            self.temporary_buffer.clear();
+                        }
+
+                        self.reconsume_in_state(State::Data);
+                    }
+                }
+            }
+            State::IndentedCodeChunk => {
+                // Consume the next input character:
+                match self.consume_next_char() {
+                    // U+000A LINE FEED (LF)
+                    Some(c) if c == '\x0a' => {
+                        self.state = State::IndentedCodeBlock;
+                        self.temporary_buffer.push(c);
+                    }
+                    None => {
+                        if !self.temporary_buffer.is_empty() {
+                            self.emit_token(Token::IndentedCodeBlock(
+                                self.temporary_buffer.to_owned(),
+                            ));
+                            self.temporary_buffer.clear();
+                        }
+                    }
+                    // Anything else
+                    Some(c) => {
+                        self.temporary_buffer.push(c);
+                    }
+                }
+            }
+            State::FencedCodeBlock => {
+                let first_char = self.temporary_buffer.chars().next().unwrap();
+                let opening_fence_length = self
+                    .temporary_buffer
+                    .chars()
+                    .take_while(|buf_c| *buf_c == first_char)
+                    .count();
+
+                let mut has_closing_fence = false;
+
+                while let Some(c) = self.consume_next_char() {
+                    if is_line_ending(c) {
+                        self.skip_whitespaces(c);
+
+                        if let Some(last_line) = self.temporary_buffer.lines().last() {
+                            let last_line = last_line.trim_end();
+                            let last_line_leading_space_count =
+                                last_line.chars().take_while(|c| *c == '\x20').count();
+
+                            if (0..=3).contains(&last_line_leading_space_count) && {
+                                let closing_fence_length = self
+                                    .temporary_buffer
+                                    .chars()
+                                    .rev()
+                                    .take_while(|buf_c| *buf_c == first_char)
+                                    .count();
+
+                                opening_fence_length == closing_fence_length
+                            } {
+                                has_closing_fence = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    self.temporary_buffer.push(c);
+                }
+
+                let info = self
+                    .temporary_buffer
+                    .lines()
+                    .next()
+                    .unwrap()
+                    .chars()
+                    .skip(opening_fence_length)
+                    .collect::<String>()
+                    .trim()
+                    .to_owned();
+
+                // content is all lines except the first and last
+                let content = self
+                    .temporary_buffer
+                    .lines()
+                    .skip(1)
+                    .take(self.temporary_buffer.lines().count() - 2)
+                    .collect::<Vec<_>>()
+                    .join("\n");
+
+                self.emit_token(Token::FencedCodeBlock { info, content });
+
+                if has_closing_fence {
+                    self.state = State::Data;
+                } else {
+                    self.reconsume_in_state(State::Data);
+                }
+
+                self.temporary_buffer.clear();
+            }
+            State::HTMLBlock => {
+                // Consume the next input character:
+                match self.consume_next_char() {
+                    // U+0021 EXCLAMATION MARK (!)
+                    Some(c) if c == '!' => {
+                        self.state = State::HTMLDeclarationOpen;
+                        self.temporary_buffer.push(c);
+                    }
+                    // U+003F QUESTION MARK (?)
+                    Some(c) if c == '?' => {
+                        if self.temporary_buffer == "<" {
+                            self.state = State::HTMLProcessingInstruction;
+                        }
+
+                        self.temporary_buffer.push(c);
+                    }
+                    // ASCII alpha
+                    Some(c) if is_ascii_alpha(c) => {
+                        if self.temporary_buffer.chars().next() == Some('<') {
+                            self.reconsume_in_state(State::HTMLTagName);
+                        }
+                        self.temporary_buffer.push(c);
+                    }
+                    // U+002F SOLIDUS (/)
+                    Some(c) if c == '/' => {
+                        if self.temporary_buffer == "<" {
+                            self.state = State::HTMLTagName;
+                        }
+
+                        self.temporary_buffer.push(c);
                     }
                     // EOF
                     None => {
-                        self.emit_token(Token::Eof);
-                        return Ok(());
+                        self.reconsume_in_state(State::Data);
                     }
-                    // Anything else: Append to text buffer
+                    // Anything else
                     Some(c) => {
-                        self.buf.borrow_mut().push(c);
-                        self.state = State::Text;
-                        self.at_line_start = false;
-                    }
-                }
-            }
-            State::Whitespace => {
-                match self.consume_next_char() {
-                    // Space: Increment count
-                    Some(c) if is_space(c) => {
-                        self.whitespace_count += 1;
-                    }
-                    // Tab: Emit spaces first, then tab
-                    Some(c) if is_tab(c) => {
-                        if self.whitespace_count > 0 {
-                            let space_start = BytePos(self.token_start_pos.0);
-                            let space_end = BytePos(space_start.0 + self.whitespace_count);
-                            self.emit_token_with_span(
-                                Token::Space(self.whitespace_count),
-                                space_start,
-                                space_end,
-                            );
-                            self.whitespace_count = 0;
-                        }
-                        let tab_start = BytePos(self.input.cur_pos().0 - 1);
-                        self.emit_token_with_span(Token::Tab, tab_start, self.input.cur_pos());
-                        // Continue in whitespace state to collect more
-                    }
-                    // Else: Emit remaining spaces and switch to appropriate state
-                    _ => {
-                        if self.whitespace_count > 0 {
-                            let space_end = BytePos(self.token_start_pos.0 + self.whitespace_count);
-                            self.emit_token_with_span(
-                                Token::Space(self.whitespace_count),
-                                self.token_start_pos,
-                                space_end,
-                            );
-                            self.whitespace_count = 0;
-                        }
-                        // No longer at line start after processing whitespace
-                        self.at_line_start = false;
-                        self.reconsume_in_state(State::Data);
-                    }
-                }
-            }
-            State::Text => {
-                match self.consume_next_char() {
-                    // Markers: Check if we need to tokenize preceding whitespace
-                    Some(
-                        c @ ('#' | '>' | '-' | '*' | '_' | '`' | '~' | '[' | '!' | '<' | '=' | '|'),
-                    ) => {
-                        let text = self.buf.borrow().clone();
-                        if !text.is_empty() {
-                            // Check if text ends with whitespace - if so, separate it
-                            let (non_ws_text, whitespace) = self.split_trailing_whitespace(&text);
-
-                            if !non_ws_text.is_empty() {
-                                let text_end = if whitespace.is_empty() {
-                                    BytePos(self.input.cur_pos().0 - 1)
-                                } else {
-                                    BytePos(self.token_start_pos.0 + non_ws_text.len() as u32)
-                                };
-                                self.emit_token_with_span(
-                                    Token::Text(non_ws_text),
-                                    self.token_start_pos,
-                                    text_end,
-                                );
-                            }
-
-                            // Emit whitespace tokens if any
-                            if !whitespace.is_empty() {
-                                let ws_start = BytePos(
-                                    self.token_start_pos.0 + (text.len() - whitespace.len()) as u32,
-                                );
-                                self.emit_whitespace_tokens(&whitespace, ws_start);
-                            }
-
-                            self.buf.borrow_mut().clear();
-                        }
-
-                        // Now handle the marker
-                        self.temporary_buffer.clear();
                         self.temporary_buffer.push(c);
-                        self.start_token();
-                        // Move back one character to include the marker in the token span
-                        self.token_start_pos = BytePos(self.input.cur_pos().0 - 1);
-                        self.state = State::Marker;
-                        self.at_line_start = false;
                     }
-                    // Other special characters: Emit Text and reconsume
-                    Some(c) if is_line_ending(c, self.input.cur()) || c == '\\' || c == '&' => {
-                        let text = self.buf.borrow().clone();
-                        if !text.is_empty() {
-                            let text_end = BytePos(self.input.cur_pos().0 - 1);
-                            self.emit_token_with_span(
-                                Token::Text(text),
-                                self.token_start_pos,
-                                text_end,
-                            );
-                            self.buf.borrow_mut().clear();
-                        }
+                }
+            }
+            State::HTMLTagName => {
+                // Consume the maximum amount of characters possible, until the
+                // next input character does not match an ASCII alpha. Append
+                // each character to the temporary buffer when it’s consumed.
+                let mut s = String::with_capacity(self.temporary_buffer.len());
+
+                while let Some(c) = self.consume_next_char() {
+                    if !is_ascii_alpha(c) {
+                        self.reconsume();
+                        break;
+                    }
+
+                    s.push(c);
+                }
+
+                if ["pre", "script", "style", "textarea"].contains(&s.to_lowercase().as_str()) {
+                    if self.temporary_buffer.starts_with("</") {
+                        self.state = State::HTMLClosingTagName;
+                    } else {
+                        self.state = State::BeforeHTMLBlockType1;
+                    }
+                } else if [
+                    "address",
+                    "article",
+                    "aside",
+                    "base",
+                    "basefont",
+                    "blockquote",
+                    "body",
+                    "caption",
+                    "center",
+                    "col",
+                    "colgroup",
+                    "dd",
+                    "details",
+                    "dialog",
+                    "dir",
+                    "div",
+                    "dl",
+                    "dt",
+                    "fieldset",
+                    "figcaption",
+                    "figure",
+                    "footer",
+                    "form",
+                    "frame",
+                    "frameset",
+                    "h1",
+                    "h2",
+                    "h3",
+                    "h4",
+                    "h5",
+                    "h6",
+                    "head",
+                    "header",
+                    "hr",
+                    "html",
+                    "iframe",
+                    "legend",
+                    "li",
+                    "link",
+                    "main",
+                    "menu",
+                    "menuitem",
+                    "nav",
+                    "noframes",
+                    "ol",
+                    "optgroup",
+                    "option",
+                    "p",
+                    "param",
+                    "section",
+                    "source",
+                    "summary",
+                    "table",
+                    "tbody",
+                    "td",
+                    "tfoot",
+                    "th",
+                    "thead",
+                    "title",
+                    "tr",
+                    "track",
+                    "ul",
+                ]
+                .contains(&s.to_lowercase().as_str())
+                {
+                    self.state = State::HTMLBlockType6;
+                } else {
+                    if self.temporary_buffer.starts_with("</") {
+                        self.state = State::HTMLClosingTagName;
+                    } else {
+                        self.state = State::HTMLOpenTagName;
+                    }
+                }
+            }
+            State::BeforeHTMLBlockType1 => {
+                // Consume the next input character:
+                match self.consume_next_char() {
+                    // U+0020 SPACE
+                    // U+0009 CHARACTER TABULATION (tab)
+                    // U+000A LINE FEED (LF)
+                    // U+000D CARRIAGE RETURN (CR)
+                    Some(c) if c == '\x20' || c == '\x09' || is_line_ending(c) => {
+                        self.skip_whitespaces(c);
+
+                        self.state = State::HTMLBlockType1;
+
+                        self.temporary_buffer.push(c);
+                    }
+                    // EOF
+                    None => {
+                        self.emit_token(Token::HTMLBlock(self.temporary_buffer.to_owned()));
+
+                        self.temporary_buffer.clear();
+
                         self.reconsume_in_state(State::Data);
                     }
-                    // EOF: Emit Text, then EOF
-                    None => {
-                        let text = self.buf.borrow().clone();
-                        if !text.is_empty() {
-                            self.emit_token_with_span(
-                                Token::Text(text),
-                                self.token_start_pos,
-                                self.input.cur_pos(),
-                            );
-                            self.buf.borrow_mut().clear();
-                        }
-                        self.start_token();
-                        self.emit_token(Token::Eof);
-                        return Ok(());
-                    }
-                    // Non-special char: Append to buffer
+                    // Anything else
                     Some(c) => {
-                        self.buf.borrow_mut().push(c);
+                        self.reconsume_in_state(State::HTMLBlock);
                     }
                 }
             }
-            State::Escape => {
+            State::HTMLBlockType1 => {
+                // Consume the maximum amount of characters possible, until the
+                // current input character matches the U+003E GREATER-THAN SIGN
+                // character. Append each character to the temporary buffer when
+                // it’s consumed.
+                let mut s = String::with_capacity(self.temporary_buffer.len());
+
+                while let Some(c) = self.consume_next_char() {
+                    s.push(c);
+
+                    if c == '>' {
+                        break;
+                    }
+                }
+
+                // The last characters match the U+003C LESS-THAN SIGN character
+                // with the U+002F SOLIDUS, tag name—the case-insensitive ASCII
+                // “pre”, “script”, “style”, or “textarea”, and the U+003E
+                // GREATER-THAN SIGN character after
+                if s.chars().last() == Some('>') && {
+                    let tag_name = s
+                        .chars()
+                        .rev()
+                        .skip(1)
+                        .take_while(|c| is_ascii_alpha(*c))
+                        .collect::<String>();
+
+                    ["pre", "script", "style", "textarea"]
+                        .contains(&tag_name.to_lowercase().as_str())
+                        && {
+                            // Get the two characters before the tag name
+                            let before_tag_name = s
+                                .chars()
+                                .rev()
+                                .skip(tag_name.len() + 1)
+                                .take(2)
+                                .collect::<String>();
+
+                            before_tag_name == "</"
+                        }
+                } {
+                    self.emit_token(Token::HTMLBlock(self.temporary_buffer.to_owned()));
+
+                    self.state = State::Data;
+
+                    self.temporary_buffer.clear();
+                } else {
+                    self.emit_token(Token::HTMLBlock(self.temporary_buffer.to_owned()));
+
+                    self.reconsume_in_state(State::Data);
+
+                    self.temporary_buffer.clear();
+                }
+            }
+            State::HTMLDeclarationOpen => {
+                // Consume the next input character:
                 match self.consume_next_char() {
-                    // Escapable punctuation characters (per CommonMark 2.4)
-                    Some(c) if is_ascii_punctuation_character(c) => {
-                        self.emit_token(Token::BackslashEscape(c));
-                        self.state = State::Data;
-                        self.at_line_start = false;
+                    // U+002D HYPHEN-MINUS (-)
+                    Some(c) if c == '-' => {
+                        if self.temporary_buffer == "<!" {
+                            self.state = State::HTMLComment;
+                        }
+
+                        self.temporary_buffer.push(c);
                     }
-                    // Newline: Hard break
-                    Some(c) if is_line_ending(c, self.input.cur()) => {
-                        self.emit_token(Token::BackslashEscape('\n'));
-                        self.state = State::Data;
-                        self.at_line_start = true;
+                    // ASCII alpha
+                    Some(c) if is_ascii_alpha(c) => {
+                        if self.temporary_buffer == "<!" {
+                            self.state = State::HTMLDeclaration;
+                        }
+
+                        self.temporary_buffer.push(c);
                     }
-                    // EOF: Emit '\\'
-                    None => {
-                        self.emit_token(Token::Text(String::from("\\")));
-                        self.start_token();
-                        self.emit_token(Token::Eof);
-                        return Ok(());
+                    // U+005B LEFT SQUARE BRACKET ([)
+                    Some(c) if c == '[' => {
+                        if self.temporary_buffer == "<![CDATA" {
+                            self.state = State::HTMLCDATASection;
+                        }
+
+                        self.temporary_buffer.push(c);
                     }
-                    // Else: Emit '\\' + char
-                    Some(_c) => {
-                        self.emit_token(Token::Text(String::from("\\")));
+                    // EOF
+                    // Anything else
+                    None | Some(_) => {
                         self.reconsume_in_state(State::Data);
-                        self.at_line_start = false;
                     }
                 }
             }
-            State::Entity => {
+            State::HTMLDeclaration => {
+                // Consume the maximum amount of characters possible, until the
+                // current input character matches the U+003E GREATER-THAN SIGN
+                // character. Append each character to the temporary buffer when
+                // it’s consumed.
+                while let Some(c) = self.consume_next_char() {
+                    self.temporary_buffer.push(c);
+
+                    if c == '>' {
+                        break;
+                    }
+                }
+
+                self.emit_token(Token::HTMLBlock(self.temporary_buffer.to_owned()));
+
+                if self.temporary_buffer.ends_with(">") {
+                    self.state = State::Data;
+                } else {
+                    self.reconsume_in_state(State::Data);
+                }
+            }
+            State::HTMLComment => {
+                // Consume the maximum amount of characters possible, until the current input
+                // character matches the U+003E GREATER-THAN SIGN character. Append each
+                // character to the temporary buffer when it’s consumed.
+                let mut s = String::with_capacity(self.temporary_buffer.len());
+
+                while let Some(c) = self.consume_next_char() {
+                    s.push(c);
+
+                    if c == '>' {
+                        break;
+                    }
+                }
+
+                self.emit_token(Token::HTMLBlock(self.temporary_buffer.to_owned()));
+
+                if s.len() >= "<!--".len() && s.ends_with("-->") {
+                    self.state = State::Data;
+                } else {
+                    self.reconsume_in_state(State::Data);
+                }
+
+                self.temporary_buffer.clear();
+            }
+            State::HTMLProcessingInstruction => {
+                // Consume the maximum amount of characters possible, until the current input
+                // character matches the U+003E GREATER-THAN SIGN character. Append each
+                // character to the temporary buffer when it’s consumed.
+                let mut s = String::with_capacity(self.temporary_buffer.len());
+
+                while let Some(c) = self.consume_next_char() {
+                    s.push(c);
+
+                    if c == '>' {
+                        break;
+                    }
+                }
+
+                self.emit_token(Token::HTMLBlock(self.temporary_buffer.to_owned()));
+
+                if s.len() >= "<?".len() && s.ends_with("?>") {
+                    self.state = State::Data;
+                } else {
+                    self.reconsume_in_state(State::Data);
+                }
+
+                self.temporary_buffer.clear();
+            }
+            State::HTMLCDATASection => {
+                // Consume the maximum amount of characters possible, until the current input
+                // character matches the U+003E GREATER-THAN SIGN character. Append each
+                // character to the temporary buffer when it’s consumed.
+                let mut s = String::with_capacity(self.temporary_buffer.len());
+
+                while let Some(c) = self.consume_next_char() {
+                    s.push(c);
+
+                    if c == '>' {
+                        break;
+                    }
+                }
+
+                self.emit_token(Token::HTMLBlock(self.temporary_buffer.to_owned()));
+
+                if s.len() >= "<![CDATA[".len() && s.ends_with("]]>") {
+                    self.state = State::Data;
+                } else {
+                    self.reconsume_in_state(State::Data);
+                }
+
+                self.temporary_buffer.clear();
+            }
+            State::HTMLBlockType6 => {
+                // Consume the next input character:
                 match self.consume_next_char() {
-                    // Alphanumeric: Buffer name
-                    Some(c) if c.is_alphanumeric() => {
+                    // U+0020 SPACE
+                    // U+0009 CHARACTER TABULATION (tab)
+                    // U+000A LINE FEED (LF)
+                    // U+000D CARRIAGE RETURN (CR)
+                    // U+003E GREATER-THAN SIGN (>)
+                    Some(c) if c == '\x20' || c == '\x09' || is_line_ending(c) || c == '>' => {
+                        self.skip_whitespaces(c);
+
+                        self.state = State::HTMLBlankLine;
+
+                        self.temporary_buffer.push(c);
+                    }
+                    // U+002F SOLIDUS (/)
+                    Some(c) if c == '/' => {
+                        self.temporary_buffer.push(c);
+                    }
+                    // EOF
+                    None => {
+                        self.emit_token(Token::HTMLBlock(self.temporary_buffer.to_owned()));
+
+                        self.reconsume_in_state(State::Data);
+
                         self.temporary_buffer.clear();
-                        self.temporary_buffer.push(c);
-                        self.state = State::NamedEntity;
                     }
-                    // '#': Numeric entity
-                    Some('#') => {
-                        self.state = State::NumericEntity;
-                    }
-                    // Else: Emit '&', reconsume
-                    _ => {
-                        self.emit_token(Token::Text(String::from("&")));
-                        self.reconsume_in_state(self.return_state.clone());
+                    // Anything else
+                    Some(c) => {
+                        self.reconsume_in_state(State::HTMLBlock);
                     }
                 }
             }
-            State::NamedEntity => {
+            State::HTMLOpenTagName => {
+                // Consume the next input character:
                 match self.consume_next_char() {
-                    // Continue entity name
-                    Some(c) if c.is_alphanumeric() || matches!(c, '.' | '-' | '_' | ':') => {
+                    // ASCII alpha
+                    // ASCII digit
+                    // U+002D HYPHEN-MINUS (-)
+                    Some(c) if is_ascii_alpha(c) || c.is_ascii_digit() || c == '-' => {
                         self.temporary_buffer.push(c);
                     }
-                    // ';': Try to resolve entity
-                    Some(';') => {
-                        let entity_name = self.temporary_buffer.clone();
-                        // Look up in HTML entities
-                        if let Some(entity) = HTML_ENTITIES.get(entity_name.as_str()) {
-                            self.emit_token(Token::Entity(entity.characters.to_string()));
+                    // U+0020 SPACE
+                    // U+0009 CHARACTER TABULATION (tab)
+                    // U+000A LINE FEED (LF)
+                    // U+000D CARRIAGE RETURN (CR)
+                    Some(c) if is_spacy(c) => {
+                        self.skip_whitespaces(c);
+
+                        self.reconsume_in_state(State::HTMLAttributes);
+                    }
+                    // Anything else
+                    None | Some(_) => {
+                        self.reconsume_in_state(State::Data);
+                    }
+                }
+            }
+            State::HTMLClosingTagName => {
+                // Consume the next input character:
+                match self.consume_next_char() {
+                    // ASCII alpha
+                    // ASCII digit
+                    // U+002D HYPHEN-MINUS (-)
+                    Some(c) if is_ascii_alpha(c) || c.is_ascii_digit() || c == '-' => {
+                        self.temporary_buffer.push(c);
+                    }
+                    // U+0020 SPACE
+                    // U+0009 CHARACTER TABULATION (tab)
+                    // U+000A LINE FEED (LF)
+                    // U+000D CARRIAGE RETURN (CR)
+                    Some(c) if is_spacy(c) => {
+                        self.reconsume_in_state(State::HTMLClosingTag);
+                    }
+                    // Anything else
+                    None | Some(_) => {
+                        self.reconsume_in_state(State::Data);
+                    }
+                }
+            }
+            State::HTMLClosingTag => {
+                // Consume the next input character:
+                match self.consume_next_char() {
+                    // U+0020 SPACE
+                    // U+0009 CHARACTER TABULATION (tab)
+                    // U+000A LINE FEED (LF)
+                    // U+000D CARRIAGE RETURN (CR)
+                    Some(c) if is_spacy(c) => {
+                        self.skip_whitespaces(c);
+
+                        self.state = State::HTMLBlankLine;
+
+                        self.temporary_buffer.push(c);
+                    }
+                    // U+003E GREATER-THAN SIGN (>)
+                    Some(c) if c == '>' => {
+                        if self.temporary_buffer.is_empty()
+                            || self.temporary_buffer.chars().next() == Some('/')
+                        {
+                            self.state = State::HTMLBlankLine;
                         } else {
-                            // Unknown entity: emit as text
-                            self.emit_diagnostic(DiagnosticKind::UnknownNamedCharacterReference);
-                            self.emit_token(Token::Text(format!("&{entity_name};")));
+                            self.state = State::HTMLClosingTag;
                         }
-                        self.state = self.return_state.clone();
-                    }
-                    // Else: Missing semicolon error
-                    _ => {
-                        self.emit_diagnostic(
-                            DiagnosticKind::MissingSemicolonAfterCharacterReference,
-                        );
-                        self.emit_token(Token::Text(format!("&{}", self.temporary_buffer)));
-                        self.reconsume_in_state(self.return_state.clone());
-                    }
-                }
-            }
-            State::NumericEntity => {
-                match self.consume_next_char() {
-                    // 'x' or 'X': Hex mode
-                    Some('x') | Some('X') => {
-                        self.character_reference_code = Some(vec![]);
-                        self.state = State::HexEntity;
-                    }
-                    // Digit: Decimal mode
-                    Some(c) if c.is_ascii_digit() => {
-                        self.character_reference_code =
-                            Some(vec![(0, c.to_digit(10).unwrap(), None)]);
-                        self.state = State::DecimalEntity;
-                    }
-                    // Else: Error
-                    _ => {
-                        self.emit_diagnostic(
-                            DiagnosticKind::AbsenceOfDigitsInNumericCharacterReference,
-                        );
-                        self.reconsume_in_state(self.return_state.clone());
-                    }
-                }
-            }
-            State::HexEntity => {
-                match self.consume_next_char() {
-                    // Hex digit: Accumulate
-                    Some(c) if c.is_ascii_hexdigit() => {
-                        if let Some(ref mut codes) = self.character_reference_code {
-                            let val = c.to_digit(16).unwrap();
-                            if codes.is_empty() {
-                                codes.push((0, val, None));
-                            } else {
-                                codes[0].1 = codes[0].1 * 16 + val;
-                            }
-                        }
-                    }
-                    // ';': Validate and emit
-                    Some(';') => {
-                        self.validate_and_emit_numeric_entity();
-                        self.state = self.return_state.clone();
-                    }
-                    // Else: Missing semicolon
-                    _ => {
-                        self.emit_diagnostic(
-                            DiagnosticKind::MissingSemicolonAfterCharacterReference,
-                        );
-                        self.validate_and_emit_numeric_entity();
-                        self.reconsume_in_state(self.return_state.clone());
-                    }
-                }
-            }
-            State::DecimalEntity => {
-                match self.consume_next_char() {
-                    // Decimal digit: Accumulate
-                    Some(c) if c.is_ascii_digit() => {
-                        if let Some(ref mut codes) = self.character_reference_code {
-                            let val = c.to_digit(10).unwrap();
-                            codes[0].1 = codes[0].1 * 10 + val;
-                        }
-                    }
-                    // ';': Validate and emit
-                    Some(';') => {
-                        self.validate_and_emit_numeric_entity();
-                        self.state = self.return_state.clone();
-                    }
-                    // Else: Missing semicolon
-                    _ => {
-                        self.emit_diagnostic(
-                            DiagnosticKind::MissingSemicolonAfterCharacterReference,
-                        );
-                        self.validate_and_emit_numeric_entity();
-                        self.reconsume_in_state(self.return_state.clone());
-                    }
-                }
-            }
-            State::Marker => {
-                match self.consume_next_char() {
-                    // Continue marker sequence
-                    Some(c)
-                        if !self.temporary_buffer.is_empty()
-                            && c == self.temporary_buffer.chars().next().unwrap() =>
-                    {
+
                         self.temporary_buffer.push(c);
                     }
-                    // Whitespace after marker: emit marker, then whitespace tokens
-                    Some(c) if is_space(c) || is_tab(c) => {
-                        let marker_char = self.temporary_buffer.chars().next().unwrap();
-                        let count = self.temporary_buffer.len() as u32;
-                        let marker_end = BytePos(self.token_start_pos.0 + count);
-                        self.emit_token_with_span(
-                            Token::Marker(marker_char, count),
-                            self.token_start_pos,
-                            marker_end,
-                        );
-
-                        // Now handle whitespace after marker
-                        let whitespace = String::from(c);
-                        let ws_start = BytePos(self.input.cur_pos().0 - 1);
-                        self.emit_whitespace_tokens(&whitespace, ws_start);
-                        self.whitespace_count = 0; // Reset for further whitespace collection
-                        self.state = State::Whitespace; // Continue collecting whitespace
-                        self.at_line_start = false;
+                    // U+002F SOLIDUS (/)
+                    Some(c) if c == '/' => {
+                        self.temporary_buffer.push(c);
                     }
-                    // Complete marker or switch to different handling
-                    _ => {
-                        let marker_char = self.temporary_buffer.chars().next().unwrap();
-                        let count = self.temporary_buffer.len() as u32;
-                        let marker_end = BytePos(self.token_start_pos.0 + count);
-                        self.emit_token_with_span(
-                            Token::Marker(marker_char, count),
-                            self.token_start_pos,
-                            marker_end,
-                        );
+                    // EOF
+                    None => {
+                        self.emit_token(Token::HTMLBlock(self.temporary_buffer.to_owned()));
+
                         self.reconsume_in_state(State::Data);
-                        self.at_line_start = false;
+
+                        self.temporary_buffer.clear();
+                    }
+                    // Anything else
+                    Some(c) => {
+                        self.reconsume_in_state(State::HTMLBlock);
+                    }
+                }
+            }
+            State::HTMLBlankLine => {
+                // Consume the maximum amount of characters possible, until the
+                // line of the current input character is a blank line. Append
+                // each character to the temporary buffer when it’s consumed.
+                let mut s = String::with_capacity(self.temporary_buffer.len());
+
+                while let Some(c) = self.consume_next_char() {
+                    s.push(c);
+
+                    if is_line_ending(c) {
+                        break;
+                    }
+                }
+
+                if s.lines().last().is_some_and(is_blank_line) {
+                    self.emit_token(Token::HTMLBlock(self.temporary_buffer.to_owned()));
+
+                    self.state = State::Data;
+
+                    self.temporary_buffer.clear();
+                } else {
+                    self.emit_token(Token::HTMLBlock(self.temporary_buffer.to_owned()));
+
+                    self.reconsume_in_state(State::Data);
+
+                    self.temporary_buffer.clear();
+                }
+            }
+            State::HTMLAttributes => {
+                // Consume the next input character:
+                match self.consume_next_char() {
+                    // U+0020 SPACE
+                    // U+0009 CHARACTER TABULATION (tab)
+                    // U+000A LINE FEED (LF)
+                    // U+000D CARRIAGE RETURN (CR)
+                    // ASCII alpha
+                    // U+005F LOW LINE (_)
+                    // U+003A COLON (:)
+                    Some(c) if is_spacy(c) || is_ascii_alpha(c) || c == '_' || c == ':' => {
+                        self.reconsume_in_state(State::HTMLAttribute);
+                        self.line_ending_count = 0;
+                    }
+                    // U+002F SOLIDUS (/)
+                    // U+003E GREATER-THAN SIGN (>)
+                    Some(c) if c == '/' || c == '>' => {
+                        self.reconsume_in_state(State::HTMLAttributes);
+                    }
+                    // EOF
+                    // Anything else
+                    None | Some(_) => {
+                        self.reconsume_in_state(State::Data);
+                    }
+                }
+            }
+            State::AfterHTMLAttributes => {
+                // Consume the next input character:
+                match self.consume_next_char() {
+                    // U+0020 SPACE
+                    // U+0009 CHARACTER TABULATION (tab)
+                    // U+002F SOLIDUS (/)
+                    Some(c) if c == '\x20' || c == '\x09' || c == '/' => {
+                        self.temporary_buffer.push(c);
+                    }
+                    // U+000A LINE FEED (LF)
+                    // U+000D CARRIAGE RETURN (CR)
+                    Some(c) if is_line_ending(c) => {
+                        if self.line_ending_count == 1 {
+                            self.reconsume_in_state(State::Data);
+
+                            self.line_ending_count = 0;
+                        } else {
+                            self.line_ending_count += 1;
+                        }
+
+                        self.temporary_buffer.push(c);
+                    }
+                    // U+003E GREATER-THAN SIGN (>)
+                    Some(c) if c == '>' => {
+                        self.reconsume_in_state(State::HTMLBlankLine);
+                    }
+                    // Anything else
+                    None | Some(_) => {
+                        self.reconsume_in_state(State::Data);
+                    }
+                }
+            }
+            State::HTMLAttribute => {
+                // Consume the next input character:
+                match self.consume_next_char() {
+                    // U+0020 SPACE
+                    // U+0009 CHARACTER TABULATION (tab)
+                    Some(c) if c == '\x20' || c == '\x09' => {}
+                    // U+000A LINE FEED (LF)
+                    // U+000D CARRIAGE RETURN (CR)
+                    Some(c) if is_line_ending(c) => {
+                        self.skip_whitespaces(c);
+
+                        if self.line_ending_count == 1 {
+                            self.reconsume_in_state(State::Data);
+
+                            self.line_ending_count = 0;
+                        } else {
+                            self.line_ending_count += 1;
+                        }
+
+                        self.temporary_buffer.push(c);
+                    }
+                    // ASCII alpha
+                    // U+005F LOW LINE (_)
+                    // U+003A COLON (:)
+                    Some(c) if is_ascii_alpha(c) || c == '_' || c == ':' => {
+                        self.reconsume_in_state(State::HTMLAttributeName);
+                    }
+                    // Anything else
+                    None | Some(_) => {
+                        self.reconsume_in_state(State::Data);
+                    }
+                }
+            }
+            State::HTMLAttributeName => {
+                // Consume the next input character:
+                match self.consume_next_char() {
+                    // ASCII alpha
+                    // U+005F LOW LINE (_)
+                    // U+003A COLON (:)
+                    Some(c) if is_ascii_alpha(c) || c == '_' || c == ':' => {
+                        self.temporary_buffer.push(c);
+                    }
+                    // U+002E FULL STOP (.)
+                    // U+002D HYPHEN-MINUS (-)
+                    Some(c) if c == '.' || c == '-' => {
+                        if self.temporary_buffer.is_empty() {
+                            self.reconsume_in_state(State::Data);
+                        } else {
+                            self.temporary_buffer.push(c);
+                        }
+                    }
+                    // EOF
+                    None => {
+                        self.reconsume_in_state(State::Data);
+                    }
+                    // Anything else
+                    Some(c) => {
+                        if self
+                            .temporary_buffer
+                            .chars()
+                            .last()
+                            .is_some_and(|c| is_ascii_alpha(c) || c == ':' || c == '.' || c == '-')
+                        {
+                            self.reconsume_in_state(State::HTMLAttributeValueSpecification);
+
+                            self.line_ending_count = 0;
+                        } else {
+                            self.reconsume_in_state(State::Data);
+                        }
+                    }
+                }
+            }
+            State::HTMLAttributeValueSpecification => {
+                // Consume the next input character:
+                match self.consume_next_char() {
+                    // U+0020 SPACE
+                    // U+0009 CHARACTER TABULATION (tab)
+                    Some(c) if c == '\x20' || c == '\x09' => {
+                        self.temporary_buffer.push(c);
+                    }
+                    // U+000A LINE FEED (LF)
+                    // U+000D CARRIAGE RETURN (CR)
+                    Some(c) if is_line_ending(c) => {
+                        self.skip_whitespaces(c);
+
+                        if self.line_ending_count == 1 {
+                            self.reconsume_in_state(State::Data);
+
+                            self.line_ending_count = 0;
+                        } else {
+                            self.line_ending_count += 1;
+                        }
+
+                        self.temporary_buffer.push(c);
+                    }
+                    // U+003D EQUALS SIGN (=)
+                    Some(c) if c == '=' => {
+                        self.state = State::HTMLAttributeValue;
+
+                        self.line_ending_count = 0;
+
+                        self.temporary_buffer.push(c);
+                    }
+                    // Anything else
+                    None | Some(_) => {
+                        self.reconsume_in_state(State::Data);
+                    }
+                }
+            }
+            State::HTMLAttributeValue => {
+                // Consume the next input character:
+                match self.consume_next_char() {
+                    // U+0027 APOSTROPHE (')
+                    Some(c) if c == '\'' => {
+                        self.state = State::HTMLSingleQuotedAttribute;
+
+                        self.temporary_buffer.push(c);
+                    }
+                    // U+0022 QUOTATION MARK (")
+                    Some(c) if c == '"' => {
+                        self.state = State::HTMLDoubleQuotedAttribute;
+
+                        self.temporary_buffer.push(c);
+                    }
+                    // EOF
+                    None => {
+                        self.reconsume_in_state(State::Data);
+                    }
+                    // Anything else
+                    Some(c) => {
+                        self.reconsume_in_state(State::HTMLUnquotedAttribute);
+                    }
+                }
+            }
+            State::HTMLUnquotedAttribute => {
+                // Consume the next input character:
+                match self.consume_next_char() {
+                    // U+0020 SPACE
+                    // U+0009 CHARACTER TABULATION (tab)
+                    // U+000A LINE FEED (LF)
+                    // U+000D CARRIAGE RETURN (CR)
+                    Some(c) if is_spacy(c) => {
+                        self.skip_whitespaces(c);
+
+                        self.reconsume_in_state(State::HTMLAttributes);
+                    }
+                    // U+0027 APOSTROPHE (')
+                    // U+0022 QUOTATION MARK (")
+                    // U+003D EQUALS SIGN (=)
+                    // U+003C LESS-THAN SIGN (<)
+                    // U+003E GREATER-THAN SIGN (>)
+                    // U+0060 GRAVE ACCENT (`)
+                    Some('\'') | Some('"') | Some('=') | Some('<') | Some('>') | Some('`')
+                    | None => {
+                        self.reconsume_in_state(State::Data);
+                    }
+                    // Anything else
+                    Some(c) => {
+                        self.temporary_buffer.push(c);
+                    }
+                }
+            }
+            State::HTMLSingleQuotedAttribute => {
+                // Consume the next input character:
+                match self.consume_next_char() {
+                    // U+0027 APOSTROPHE (')
+                    Some(c) if c == '\'' => {
+                        self.state = State::HTMLAttributes;
+
+                        self.temporary_buffer.push(c);
+                    }
+                    // EOF
+                    None => {
+                        self.reconsume_in_state(State::Data);
+                    }
+                    // Anything else
+                    Some(c) => {
+                        self.temporary_buffer.push(c);
+                    }
+                }
+            }
+            State::HTMLDoubleQuotedAttribute => {
+                // Consume the next input character:
+                match self.consume_next_char() {
+                    // U+0022 QUOTATION MARK (")
+                    Some(c) if c == '"' => {
+                        self.state = State::HTMLAttributes;
+
+                        self.temporary_buffer.push(c);
+                    }
+                    // Anything else
+                    None | Some(_) => {
+                        self.reconsume_in_state(State::Data);
+                    }
+                    // Anything else
+                    Some(c) => {
+                        self.temporary_buffer.push(c);
+                    }
+                }
+            }
+            State::LinkLabel => {
+                // Consume the next input character:
+                match self.consume_next_char() {
+                    // U+0020 SPACE
+                    // U+0009 CHARACTER TABULATION (tab)
+                    // U+000A LINE FEED (LF)
+                    // U+000D CARRIAGE RETURN (CR)
+                    Some(c) if is_spacy(c) => {
+                        self.skip_whitespaces(c);
+
+                        self.reconsume_in_state(State::Data);
+                    }
+                    // U+005D RIGHT SQUARE BRACKET (])
+                    Some(c) if c == ']' => {
+                        self.state = State::AfterLinkLabel;
+
+                        self.temporary_buffer.push(c);
+                    }
+                    // EOF
+                    None => {
+                        self.reconsume_in_state(State::Data);
+                    }
+                    // Anything else
+                    Some(c) => {
+                        if self.temporary_buffer.len() == 999 {
+                            self.reconsume_in_state(State::Data);
+                        } else {
+                            self.temporary_buffer.push(c);
+                        }
+                    }
+                }
+            }
+            State::AfterLinkLabel => {
+                // Consume the next input character:
+                match self.consume_next_char() {
+                    // U+003A COLON (:)
+                    Some(c) if c == ':' => {
+                        self.temporary_buffer.push(c);
+                    }
+                    // U+0020 SPACE
+                    // U+0009 CHARACTER TABULATION (tab)
+                    Some(c) if c == '\x20' || c == '\x09' => {
+                        let link_label_length = self
+                            .temporary_buffer
+                            .chars()
+                            .take_while(|c| *c != ']')
+                            .count();
+
+                        if self
+                            .temporary_buffer
+                            .chars()
+                            .nth(link_label_length)
+                            .unwrap()
+                            == ':'
+                        {
+                            self.temporary_buffer.push(c);
+                        } else {
+                            self.reconsume_in_state(State::Data);
+                        }
+                    }
+                    // U+000A LINE FEED (LF)
+                    // U+000D CARRIAGE RETURN (CR)
+                    Some(c) if is_line_ending(c) => {
+                        self.skip_whitespaces(c);
+
+                        if self.line_ending_count == 1 {
+                            self.reconsume_in_state(State::Data);
+
+                            self.line_ending_count = 0;
+                        } else {
+                            self.line_ending_count += 1;
+                        }
+
+                        self.temporary_buffer.push(c);
+                    }
+                    // EOF
+                    None => {
+                        self.reconsume_in_state(State::Data);
+                    }
+                    // Anything else
+                    Some(c) => {
+                        if self.temporary_buffer.chars().next() == Some(':') {
+                            self.state = State::LinkDestination;
+                        }
+                    }
+                }
+            }
+            State::LinkDestination => {
+                // Consume the next input character:
+                match self.consume_next_char() {
+                    // U+003C LESS-THAN SIGN (<)
+                    Some(c) if c == '<' => {
+                        if self.temporary_buffer.is_empty() {
+                            self.state = State::BracedLinkDestination;
+                        }
+
+                        self.temporary_buffer.push(c);
+                    }
+                    // Anything else
+                    None | Some(_) => {
+                        self.reconsume_in_state(State::Data);
+                    }
+                }
+            }
+            State::BracedLinkDestination => {
+                // Consume the next input character:
+                match self.consume_next_char() {
+                    // U+003E GREATER-THAN SIGN (>)
+                    Some(c) if c == '>' => {
+                        self.state = State::BeforeLinkTitle;
+
+                        self.temporary_buffer.push(c);
+                    }
+                    // U+000A LINE FEED (LF)
+                    // U+000D CARRIAGE RETURN (CR)
+                    Some(c) if is_line_ending(c) => {
+                        self.skip_whitespaces(c);
+
+                        self.reconsume_in_state(State::Data);
+                    }
+                    // EOF
+                    None => {
+                        self.reconsume_in_state(State::Data);
+                    }
+                    // Anything else
+                    Some(c) => {
+                        self.temporary_buffer.push(c);
+                    }
+                }
+            }
+            State::UnquotedLinkDestination => {
+                // Consume the next input character:
+                match self.consume_next_char() {
+                    // U+0020 SPACE
+                    // ASCII control
+                    Some(c) if c == '\x20' || is_control(c as u32) => {
+                        self.reconsume_in_state(State::BeforeLinkTitle);
+                    }
+                    // U+0028 LEFT PARENTHESIS
+                    Some(c) if c == '(' => {
+                        if self.temporary_buffer.chars().last() == Some('\x5c') {
+                            self.temporary_buffer.push(c);
+                        } else {
+                            self.reconsume_in_state(State::BalancedParenthesisPairState);
+                        }
+                    }
+                    // U+000A LINE FEED (LF)
+                    // U+000D CARRIAGE RETURN (CR)
+                    Some(c) if is_line_ending(c) => {
+                        self.skip_whitespaces(c);
+
+                        self.reconsume_in_state(State::Data);
+                    }
+                    // EOF
+                    None => {
+                        self.reconsume_in_state(State::Data);
+                    }
+                    // Anything else
+                    Some(c) => {
+                        self.temporary_buffer.push(c);
+                    }
+                }
+            }
+            State::BalancedParenthesisPairState => {
+                // Consume the next input character:
+                match self.consume_next_char() {
+                    // U+0029 RIGHT PARENTHESIS
+                    Some(c) if c == ')' => {
+                        self.reconsume_in_state(State::UnquotedLinkDestination);
+                    }
+                    // U+000A LINE FEED (LF)
+                    // U+000D CARRIAGE RETURN (CR)
+                    Some(c) if is_line_ending(c) => {
+                        self.skip_whitespaces(c);
+
+                        self.reconsume_in_state(State::Data);
+                    }
+                    // EOF
+                    None => {
+                        self.reconsume_in_state(State::Data);
+                    }
+                    // Anything else
+                    Some(c) => {
+                        self.temporary_buffer.push(c);
+                    }
+                }
+            }
+            State::BeforeLinkTitle => {
+                // Consume the next input character:
+                match self.consume_next_char() {
+                    // U+0020 SPACE
+                    // U+0009 CHARACTER TABULATION (tab)
+                    Some(c) if c == '\x20' || c == '\x09' => {
+                        self.temporary_buffer.push(c);
+                    }
+                    // U+000A LINE FEED (LF)
+                    // U+000D CARRIAGE RETURN (CR)
+                    Some(c) if is_line_ending(c) => {
+                        self.skip_whitespaces(c);
+
+                        if self.line_ending_count == 1 {
+                            self.reconsume_in_state(State::Data);
+
+                            self.line_ending_count = 0;
+                        } else {
+                            self.line_ending_count += 1;
+                        }
+
+                        self.temporary_buffer.push(c);
+                    }
+                    // U+0022 QUOTATION MARK (")
+                    Some(c) if c == '"' => {
+                        self.reconsume_in_state(State::DoubleQuotedLinkTitle);
+                    }
+                    // U+0027 APOSTROPHE (')
+                    Some(c) if c == '\'' => {
+                        self.reconsume_in_state(State::SingleQuotedLinkTitle);
+                    }
+                    // U+0028 LEFT PARENTHESIS
+                    Some(c) if c == '(' => {
+                        self.reconsume_in_state(State::ParentheticalLinkTitle);
+                    }
+                    // Anything else
+                    None | Some(_) => {
+                        self.reconsume_in_state(State::Data);
+                    }
+                }
+            }
+            State::DoubleQuotedLinkTitle => {
+                // Consume the next input character:
+                match self.consume_next_char() {
+                    // U+0022 QUOTATION MARK (")
+                    Some(c) if c == '"' => {
+                        self.state = State::AfterLinkTitle;
+
+                        self.temporary_buffer.push(c);
+                    }
+                    // EOF
+                    None => {
+                        self.reconsume_in_state(State::Data);
+                    }
+                    // Anything else
+                    Some(c) => {
+                        if self.temporary_buffer.chars().last() == Some('"')
+                            && self.temporary_buffer.chars().rev().nth(1) != Some('\\')
+                        {
+                            self.reconsume_in_state(State::Data);
+                        } else {
+                            self.temporary_buffer.push(c);
+                        }
+                    }
+                }
+            }
+            State::SingleQuotedLinkTitle => {
+                // Consume the next input character:
+                match self.consume_next_char() {
+                    // U+0027 APOSTROPHE (')
+                    Some(c) if c == '\'' => {
+                        self.state = State::AfterLinkTitle;
+
+                        self.temporary_buffer.push(c);
+                    }
+                    // EOF
+                    None => {
+                        self.reconsume_in_state(State::Data);
+                    }
+                    // Anything else
+                    Some(c) => {
+                        if self.temporary_buffer.chars().last() == Some('\'')
+                            && self.temporary_buffer.chars().rev().nth(1) != Some('\\')
+                        {
+                            self.reconsume_in_state(State::Data);
+                        } else {
+                            self.temporary_buffer.push(c);
+                        }
+                    }
+                }
+            }
+            State::ParentheticalLinkTitle => {
+                // Consume the next input character:
+                match self.consume_next_char() {
+                    // U+0029 RIGHT PARENTHESIS
+                    Some(c) if c == ')' => {
+                        self.state = State::AfterLinkTitle;
+
+                        self.temporary_buffer.push(c);
+                    }
+                    // EOF
+                    None => {
+                        self.reconsume_in_state(State::Data);
+                    }
+                    // Anything else
+                    Some(c) => {
+                        if self.temporary_buffer.chars().last() == Some('\'')
+                            && self.temporary_buffer.chars().rev().nth(1) != Some('\\')
+                        {
+                            self.reconsume_in_state(State::Data);
+                        } else {
+                            self.temporary_buffer.push(c);
+                        }
+                    }
+                }
+            }
+            State::AfterLinkTitle => {
+                // Consume the next input character:
+                match self.consume_next_char() {
+                    // U+000A LINE FEED (LF)
+                    // U+000D CARRIAGE RETURN (CR)
+                    Some(c) if is_line_ending(c) => {
+                        self.skip_whitespaces(c);
+
+                        // TODO Parse the link reference definition
+                    }
+                    // Anything else
+                    None | Some(_) => {
+                        self.reconsume_in_state(State::Data);
                     }
                 }
             }
@@ -682,67 +1713,169 @@ where
 
         Ok(())
     }
+
+    #[inline(always)]
+    fn skip_whitespaces(&mut self, c: char) {
+        if c == '\r' && self.input.cur() == Some('\n') {
+            unsafe {
+                // Safety: cur() is Some
+                self.input.bump();
+            }
+        }
+    }
 }
 
-// A line ending is a line feed (U+000A), a carriage return (U+000D) not
-// followed by a line feed, or a carriage return and a following line feed.
+// A line containing no characters, or a line containing only spaces (U+0020)
+// or tabs (U+0009)
 #[inline(always)]
-fn is_line_ending(c: char, next: Option<char>) -> bool {
-    (c == '\n' || c == '\r' && next != Some('\n')) || c == '\r' && next == Some('\n')
+fn is_blank_line(l: &str) -> bool {
+    l.is_empty() || l.chars().all(|c| c == '\x20' || c == '\x09')
 }
 
-// A line containing no characters, or a line containing only spaces (U+0020) or
-// tabs (U+0009), is called a blank line.
+// U+0020 SPACE
+// U+00A0 NO-BREAK SPACE (NBSP)
+// U+1680 OGHAM SPACE MARK
+// U+2000 EN QUAD
+// U+2001 EM QUAD
+// U+2002 EN SPACE
+// U+2003 EM SPACE
+// U+2004 THREE-PER-EM SPACE
+// U+2005 FOUR-PER-EM
+// U+2006 SIX-PER-EM SPACE
+// U+2007 FIGURE SPACE
+// U+2008 PUNCTUATION SPACE
+// U+2009 THIN SPACE
+// U+200A HAIR SPACE
+// U+202F NARROW NO-BREAK SPACE (NNBSP)
+// U+205F MEDIUM MATHEMATICAL SPACE (MMSP)
+// U+3000 IDEOGRAPHIC SPACE
+const UNICODE_SPACE_SEPERATORS: [char; 13] = [
+    '\x20', '\u{00a0}', '\u{1680}', '\u{2000}', '\u{2001}', '\u{2002}', '\u{2003}', '\u{2004}',
+    '\u{2005}', '\u{2006}', '\u{2007}', '\u{2008}', '\u{2009}',
+];
+
+// By spec '\r' is replaced with '\n' before tokenizer, but we keep them to have
+// better AST and don't break logic to ignore characters
 #[inline(always)]
-fn is_blank_line(line: &str) -> bool {
-    line.trim().is_empty()
+fn is_line_ending(c: char) -> bool {
+    // U+000A LINE FEED (LF)
+    // U+000D CARRIAGE RETURN (CR)
+    matches!(c, '\x0a' | '\x0d')
 }
 
-// A Unicode whitespace character is a character in the Unicode Zs general
-// category, or a tab (U+0009), line feed (U+000A), form feed (U+000C), or
-// carriage return (U+000D).
+// By spec '\r' removed before tokenizer, but we keep them to have better AST
+// and don't break logic to ignore characters
 #[inline(always)]
-fn is_unicode_whitespace_character(c: char) -> bool {
-    matches!(c, '\x09' | '\x0a' | '\x0c' | '\x0d' | '\x20')
+fn is_spacy(c: char) -> bool {
+    // U+0009 CHARACTER TABULATION (tab)
+    // U+000A LINE FEED (LF)
+    // U+000C FORM FEED (FF)
+    // U+000D CARRIAGE RETURN (CR)
+    // U+0020 SPACE
+    matches!(c, '\x09' | '\x0a' | '\x0d' | '\x0c' | '\x20')
 }
 
-// Unicode whitespace is a sequence of one or more Unicode whitespace
-// characters.
 #[inline(always)]
-fn is_unicode_whitespace(line: &str) -> bool {
-    line.chars().all(|c| is_unicode_whitespace_character(c))
+fn is_control(c: u32) -> bool {
+    matches!(c, c @ 0x00..=0x1f | c @ 0x7f..=0x9f if !matches!(c, 0x09 | 0x0a | 0x0c | 0x0d | 0x20))
 }
 
-// A tab is U+0009.
 #[inline(always)]
-fn is_tab(c: char) -> bool {
-    c == '\x09'
+fn is_surrogate(c: u32) -> bool {
+    matches!(c, 0xd800..=0xdfff)
 }
 
-// A space is U+0020.
+// A noncharacter is a code point that is in the range U+FDD0 to U+FDEF,
+// inclusive, or U+FFFE, U+FFFF, U+1FFFE, U+1FFFF, U+2FFFE, U+2FFFF, U+3FFFE,
+// U+3FFFF, U+4FFFE, U+4FFFF, U+5FFFE, U+5FFFF, U+6FFFE, U+6FFFF, U+7FFFE,
+// U+7FFFF, U+8FFFE, U+8FFFF, U+9FFFE, U+9FFFF, U+AFFFE, U+AFFFF, U+BFFFE,
+// U+BFFFF, U+CFFFE, U+CFFFF, U+DFFFE, U+DFFFF, U+EFFFE, U+EFFFF, U+FFFFE,
+// U+FFFFF, U+10FFFE, or U+10FFFF.
 #[inline(always)]
-fn is_space(c: char) -> bool {
-    c == '\x20'
+fn is_noncharacter(c: u32) -> bool {
+    matches!(
+        c,
+        0xfdd0
+            ..=0xfdef
+                | 0xfffe
+                | 0xffff
+                | 0x1fffe
+                | 0x1ffff
+                | 0x2fffe
+                | 0x2ffff
+                | 0x3fffe
+                | 0x3ffff
+                | 0x4fffe
+                | 0x4ffff
+                | 0x5fffe
+                | 0x5ffff
+                | 0x6fffe
+                | 0x6ffff
+                | 0x7fffe
+                | 0x7ffff
+                | 0x8fffe
+                | 0x8ffff
+                | 0x9fffe
+                | 0x9ffff
+                | 0xafffe
+                | 0xaffff
+                | 0xbfffe
+                | 0xbffff
+                | 0xcfffe
+                | 0xcffff
+                | 0xdfffe
+                | 0xdffff
+                | 0xefffe
+                | 0xeffff
+                | 0xffffe
+                | 0xfffff
+                | 0x10fffe
+                | 0x10ffff,
+    )
 }
 
-// An ASCII control character is a character between U+0000–1F (both including)
-// or U+007F.
 #[inline(always)]
-fn is_ascii_control_character(c: char) -> bool {
-    matches!(c, '\x00'..='\x1f' | '\x7f')
+fn is_upper_hex_digit(c: char) -> bool {
+    matches!(c, '0'..='9' | 'A'..='F')
 }
 
-// An ASCII punctuation character is !, ", #, $, %, &, ', (, ), *, +, ,, -, ., /
-// (U+0021–2F), :, ;, <, =, >, ?, @ (U+003A–0040), [, \, ], ^, _, `
-// (U+005B–0060), {, |, }, or ~ (U+007B–007E).
 #[inline(always)]
-fn is_ascii_punctuation_character(c: char) -> bool {
-    matches!(c, '\x21'..='\x2f' | '\x3a'..='\x40' | '\x5b'..='\x60' | '\x7b'..='\x7e')
+fn is_lower_hex_digit(c: char) -> bool {
+    matches!(c, '0'..='9' | 'a'..='f')
 }
 
-// A Unicode punctuation character is a character in the Unicode P (punctuation)
-// or S (symbol) general categories.
 #[inline(always)]
-fn is_unicode_punctuation_character(c: char) -> bool {
-    matches!(c, '\x21'..='\x2f' | '\x3a'..='\x40' | '\x5b'..='\x60' | '\x7b'..='\x7e')
+fn is_ascii_hex_digit(c: char) -> bool {
+    is_upper_hex_digit(c) || is_lower_hex_digit(c)
+}
+
+#[inline(always)]
+fn is_ascii_upper_alpha(c: char) -> bool {
+    c.is_ascii_uppercase()
+}
+
+#[inline(always)]
+fn is_ascii_lower_alpha(c: char) -> bool {
+    c.is_ascii_lowercase()
+}
+
+#[inline(always)]
+fn is_ascii_alpha(c: char) -> bool {
+    is_ascii_upper_alpha(c) || is_ascii_lower_alpha(c)
+}
+
+#[inline(always)]
+fn is_allowed_control_character(c: u32) -> bool {
+    c != 0x00 && is_control(c)
+}
+
+#[inline(always)]
+fn is_allowed_character(c: char) -> bool {
+    let c = c as u32;
+
+    if is_surrogate(c) || is_allowed_control_character(c) || is_noncharacter(c) {
+        return false;
+    }
+
+    return true;
 }

@@ -1,0 +1,32 @@
+{
+  "type": "Document",
+  "span": {
+    "start": 1,
+    "end": 13
+  },
+  "mdx": false,
+  "gfm": false,
+  "children": [
+    {
+      "type": "ThematicBreak",
+      "span": {
+        "start": 1,
+        "end": 4
+      }
+    },
+    {
+      "type": "ThematicBreak",
+      "span": {
+        "start": 5,
+        "end": 8
+      }
+    },
+    {
+      "type": "ThematicBreak",
+      "span": {
+        "start": 9,
+        "end": 12
+      }
+    }
+  ]
+}

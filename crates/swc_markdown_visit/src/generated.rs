@@ -5,6 +5,13 @@ pub use ::swc_visit::All;
 use swc_markdown_ast::*;
 #[doc = r" A visitor trait for traversing the AST."]
 pub trait Visit {
+    #[doc = "Visit a node of type `swc_atoms :: Atom`.\n\nBy default, this method calls \
+             [`swc_atoms :: Atom::visit_children_with`]. If you want to recurse, you need to call \
+             it manually."]
+    #[inline]
+    fn visit_atom(&mut self, node: &swc_atoms::Atom) {
+        <swc_atoms::Atom as VisitWith<Self>>::visit_children_with(node, self)
+    }
     #[doc = "Visit a node of type `ATXHeading`.\n\nBy default, this method calls \
              [`ATXHeading::visit_children_with`]. If you want to recurse, you need to call it \
              manually."]
@@ -26,12 +33,6 @@ pub trait Visit {
     fn visit_blank_line(&mut self, node: &BlankLine) {
         <BlankLine as VisitWith<Self>>::visit_children_with(node, self)
     }
-    #[doc = "Visit a node of type `Block`.\n\nBy default, this method calls \
-             [`Block::visit_children_with`]. If you want to recurse, you need to call it manually."]
-    #[inline]
-    fn visit_block(&mut self, node: &Block) {
-        <Block as VisitWith<Self>>::visit_children_with(node, self)
-    }
     #[doc = "Visit a node of type `BlockQuote`.\n\nBy default, this method calls \
              [`BlockQuote::visit_children_with`]. If you want to recurse, you need to call it \
              manually."]
@@ -39,11 +40,17 @@ pub trait Visit {
     fn visit_block_quote(&mut self, node: &BlockQuote) {
         <BlockQuote as VisitWith<Self>>::visit_children_with(node, self)
     }
-    #[doc = "Visit a node of type `Vec < Block >`.\n\nBy default, this method calls [`Vec < Block \
+    #[doc = "Visit a node of type `Child`.\n\nBy default, this method calls \
+             [`Child::visit_children_with`]. If you want to recurse, you need to call it manually."]
+    #[inline]
+    fn visit_child(&mut self, node: &Child) {
+        <Child as VisitWith<Self>>::visit_children_with(node, self)
+    }
+    #[doc = "Visit a node of type `Vec < Child >`.\n\nBy default, this method calls [`Vec < Child \
              >::visit_children_with`]. If you want to recurse, you need to call it manually."]
     #[inline]
-    fn visit_blocks(&mut self, node: &[Block]) {
-        <[Block] as VisitWith<Self>>::visit_children_with(node, self)
+    fn visit_childs(&mut self, node: &[Child]) {
+        <[Child] as VisitWith<Self>>::visit_children_with(node, self)
     }
     #[doc = "Visit a node of type `CodeSpan`.\n\nBy default, this method calls \
              [`CodeSpan::visit_children_with`]. If you want to recurse, you need to call it \
@@ -66,12 +73,12 @@ pub trait Visit {
     fn visit_document(&mut self, node: &Document) {
         <Document as VisitWith<Self>>::visit_children_with(node, self)
     }
-    #[doc = "Visit a node of type `EmphasisAndStrongEmphasis`.\n\nBy default, this method calls \
-             [`EmphasisAndStrongEmphasis::visit_children_with`]. If you want to recurse, you need \
-             to call it manually."]
+    #[doc = "Visit a node of type `Emphasis`.\n\nBy default, this method calls \
+             [`Emphasis::visit_children_with`]. If you want to recurse, you need to call it \
+             manually."]
     #[inline]
-    fn visit_emphasis_and_strong_emphasis(&mut self, node: &EmphasisAndStrongEmphasis) {
-        <EmphasisAndStrongEmphasis as VisitWith<Self>>::visit_children_with(node, self)
+    fn visit_emphasis(&mut self, node: &Emphasis) {
+        <Emphasis as VisitWith<Self>>::visit_children_with(node, self)
     }
     #[doc = "Visit a node of type `FencedCodeBlock`.\n\nBy default, this method calls \
              [`FencedCodeBlock::visit_children_with`]. If you want to recurse, you need to call it \
@@ -114,13 +121,6 @@ pub trait Visit {
     fn visit_inline_block(&mut self, node: &InlineBlock) {
         <InlineBlock as VisitWith<Self>>::visit_children_with(node, self)
     }
-    #[doc = "Visit a node of type `Vec < InlineBlock >`.\n\nBy default, this method calls [`Vec < \
-             InlineBlock >::visit_children_with`]. If you want to recurse, you need to call it \
-             manually."]
-    #[inline]
-    fn visit_inline_blocks(&mut self, node: &[InlineBlock]) {
-        <[InlineBlock] as VisitWith<Self>>::visit_children_with(node, self)
-    }
     #[doc = "Visit a node of type `LeafBlock`.\n\nBy default, this method calls \
              [`LeafBlock::visit_children_with`]. If you want to recurse, you need to call it \
              manually."]
@@ -153,6 +153,13 @@ pub trait Visit {
     #[inline]
     fn visit_list_item(&mut self, node: &ListItem) {
         <ListItem as VisitWith<Self>>::visit_children_with(node, self)
+    }
+    #[doc = "Visit a node of type `Option < swc_atoms :: Atom >`.\n\nBy default, this method calls \
+             [`Option < swc_atoms :: Atom >::visit_children_with`]. If you want to recurse, you \
+             need to call it manually."]
+    #[inline]
+    fn visit_opt_atom(&mut self, node: &Option<swc_atoms::Atom>) {
+        <Option<swc_atoms::Atom> as VisitWith<Self>>::visit_children_with(node, self)
     }
     #[doc = "Visit a node of type `Paragraph`.\n\nBy default, this method calls \
              [`Paragraph::visit_children_with`]. If you want to recurse, you need to call it \
@@ -195,12 +202,26 @@ pub trait Visit {
     fn visit_string(&mut self, node: &String) {
         <String as VisitWith<Self>>::visit_children_with(node, self)
     }
+    #[doc = "Visit a node of type `StrongEmphasis`.\n\nBy default, this method calls \
+             [`StrongEmphasis::visit_children_with`]. If you want to recurse, you need to call it \
+             manually."]
+    #[inline]
+    fn visit_strong_emphasis(&mut self, node: &StrongEmphasis) {
+        <StrongEmphasis as VisitWith<Self>>::visit_children_with(node, self)
+    }
     #[doc = "Visit a node of type `TextualContent`.\n\nBy default, this method calls \
              [`TextualContent::visit_children_with`]. If you want to recurse, you need to call it \
              manually."]
     #[inline]
     fn visit_textual_content(&mut self, node: &TextualContent) {
         <TextualContent as VisitWith<Self>>::visit_children_with(node, self)
+    }
+    #[doc = "Visit a node of type `Vec < TextualContent >`.\n\nBy default, this method calls [`Vec \
+             < TextualContent >::visit_children_with`]. If you want to recurse, you need to call \
+             it manually."]
+    #[inline]
+    fn visit_textual_contents(&mut self, node: &[TextualContent]) {
+        <[TextualContent] as VisitWith<Self>>::visit_children_with(node, self)
     }
     #[doc = "Visit a node of type `ThematicBreak`.\n\nBy default, this method calls \
              [`ThematicBreak::visit_children_with`]. If you want to recurse, you need to call it \
@@ -215,6 +236,11 @@ where
     V: ?Sized + Visit,
 {
     #[inline]
+    fn visit_atom(&mut self, node: &swc_atoms::Atom) {
+        <V as Visit>::visit_atom(&mut **self, node)
+    }
+
+    #[inline]
     fn visit_atx_heading(&mut self, node: &ATXHeading) {
         <V as Visit>::visit_atx_heading(&mut **self, node)
     }
@@ -230,18 +256,18 @@ where
     }
 
     #[inline]
-    fn visit_block(&mut self, node: &Block) {
-        <V as Visit>::visit_block(&mut **self, node)
-    }
-
-    #[inline]
     fn visit_block_quote(&mut self, node: &BlockQuote) {
         <V as Visit>::visit_block_quote(&mut **self, node)
     }
 
     #[inline]
-    fn visit_blocks(&mut self, node: &[Block]) {
-        <V as Visit>::visit_blocks(&mut **self, node)
+    fn visit_child(&mut self, node: &Child) {
+        <V as Visit>::visit_child(&mut **self, node)
+    }
+
+    #[inline]
+    fn visit_childs(&mut self, node: &[Child]) {
+        <V as Visit>::visit_childs(&mut **self, node)
     }
 
     #[inline]
@@ -260,8 +286,8 @@ where
     }
 
     #[inline]
-    fn visit_emphasis_and_strong_emphasis(&mut self, node: &EmphasisAndStrongEmphasis) {
-        <V as Visit>::visit_emphasis_and_strong_emphasis(&mut **self, node)
+    fn visit_emphasis(&mut self, node: &Emphasis) {
+        <V as Visit>::visit_emphasis(&mut **self, node)
     }
 
     #[inline]
@@ -295,11 +321,6 @@ where
     }
 
     #[inline]
-    fn visit_inline_blocks(&mut self, node: &[InlineBlock]) {
-        <V as Visit>::visit_inline_blocks(&mut **self, node)
-    }
-
-    #[inline]
     fn visit_leaf_block(&mut self, node: &LeafBlock) {
         <V as Visit>::visit_leaf_block(&mut **self, node)
     }
@@ -322,6 +343,11 @@ where
     #[inline]
     fn visit_list_item(&mut self, node: &ListItem) {
         <V as Visit>::visit_list_item(&mut **self, node)
+    }
+
+    #[inline]
+    fn visit_opt_atom(&mut self, node: &Option<swc_atoms::Atom>) {
+        <V as Visit>::visit_opt_atom(&mut **self, node)
     }
 
     #[inline]
@@ -355,8 +381,18 @@ where
     }
 
     #[inline]
+    fn visit_strong_emphasis(&mut self, node: &StrongEmphasis) {
+        <V as Visit>::visit_strong_emphasis(&mut **self, node)
+    }
+
+    #[inline]
     fn visit_textual_content(&mut self, node: &TextualContent) {
         <V as Visit>::visit_textual_content(&mut **self, node)
+    }
+
+    #[inline]
+    fn visit_textual_contents(&mut self, node: &[TextualContent]) {
+        <V as Visit>::visit_textual_contents(&mut **self, node)
     }
 
     #[inline]
@@ -369,6 +405,11 @@ where
     V: ?Sized + Visit,
 {
     #[inline]
+    fn visit_atom(&mut self, node: &swc_atoms::Atom) {
+        <V as Visit>::visit_atom(&mut **self, node)
+    }
+
+    #[inline]
     fn visit_atx_heading(&mut self, node: &ATXHeading) {
         <V as Visit>::visit_atx_heading(&mut **self, node)
     }
@@ -384,18 +425,18 @@ where
     }
 
     #[inline]
-    fn visit_block(&mut self, node: &Block) {
-        <V as Visit>::visit_block(&mut **self, node)
-    }
-
-    #[inline]
     fn visit_block_quote(&mut self, node: &BlockQuote) {
         <V as Visit>::visit_block_quote(&mut **self, node)
     }
 
     #[inline]
-    fn visit_blocks(&mut self, node: &[Block]) {
-        <V as Visit>::visit_blocks(&mut **self, node)
+    fn visit_child(&mut self, node: &Child) {
+        <V as Visit>::visit_child(&mut **self, node)
+    }
+
+    #[inline]
+    fn visit_childs(&mut self, node: &[Child]) {
+        <V as Visit>::visit_childs(&mut **self, node)
     }
 
     #[inline]
@@ -414,8 +455,8 @@ where
     }
 
     #[inline]
-    fn visit_emphasis_and_strong_emphasis(&mut self, node: &EmphasisAndStrongEmphasis) {
-        <V as Visit>::visit_emphasis_and_strong_emphasis(&mut **self, node)
+    fn visit_emphasis(&mut self, node: &Emphasis) {
+        <V as Visit>::visit_emphasis(&mut **self, node)
     }
 
     #[inline]
@@ -449,11 +490,6 @@ where
     }
 
     #[inline]
-    fn visit_inline_blocks(&mut self, node: &[InlineBlock]) {
-        <V as Visit>::visit_inline_blocks(&mut **self, node)
-    }
-
-    #[inline]
     fn visit_leaf_block(&mut self, node: &LeafBlock) {
         <V as Visit>::visit_leaf_block(&mut **self, node)
     }
@@ -476,6 +512,11 @@ where
     #[inline]
     fn visit_list_item(&mut self, node: &ListItem) {
         <V as Visit>::visit_list_item(&mut **self, node)
+    }
+
+    #[inline]
+    fn visit_opt_atom(&mut self, node: &Option<swc_atoms::Atom>) {
+        <V as Visit>::visit_opt_atom(&mut **self, node)
     }
 
     #[inline]
@@ -509,8 +550,18 @@ where
     }
 
     #[inline]
+    fn visit_strong_emphasis(&mut self, node: &StrongEmphasis) {
+        <V as Visit>::visit_strong_emphasis(&mut **self, node)
+    }
+
+    #[inline]
     fn visit_textual_content(&mut self, node: &TextualContent) {
         <V as Visit>::visit_textual_content(&mut **self, node)
+    }
+
+    #[inline]
+    fn visit_textual_contents(&mut self, node: &[TextualContent]) {
+        <V as Visit>::visit_textual_contents(&mut **self, node)
     }
 
     #[inline]
@@ -523,6 +574,14 @@ where
     A: Visit,
     B: Visit,
 {
+    #[inline]
+    fn visit_atom(&mut self, node: &swc_atoms::Atom) {
+        match self {
+            swc_visit::Either::Left(visitor) => Visit::visit_atom(visitor, node),
+            swc_visit::Either::Right(visitor) => Visit::visit_atom(visitor, node),
+        }
+    }
+
     #[inline]
     fn visit_atx_heading(&mut self, node: &ATXHeading) {
         match self {
@@ -548,14 +607,6 @@ where
     }
 
     #[inline]
-    fn visit_block(&mut self, node: &Block) {
-        match self {
-            swc_visit::Either::Left(visitor) => Visit::visit_block(visitor, node),
-            swc_visit::Either::Right(visitor) => Visit::visit_block(visitor, node),
-        }
-    }
-
-    #[inline]
     fn visit_block_quote(&mut self, node: &BlockQuote) {
         match self {
             swc_visit::Either::Left(visitor) => Visit::visit_block_quote(visitor, node),
@@ -564,10 +615,18 @@ where
     }
 
     #[inline]
-    fn visit_blocks(&mut self, node: &[Block]) {
+    fn visit_child(&mut self, node: &Child) {
         match self {
-            swc_visit::Either::Left(visitor) => Visit::visit_blocks(visitor, node),
-            swc_visit::Either::Right(visitor) => Visit::visit_blocks(visitor, node),
+            swc_visit::Either::Left(visitor) => Visit::visit_child(visitor, node),
+            swc_visit::Either::Right(visitor) => Visit::visit_child(visitor, node),
+        }
+    }
+
+    #[inline]
+    fn visit_childs(&mut self, node: &[Child]) {
+        match self {
+            swc_visit::Either::Left(visitor) => Visit::visit_childs(visitor, node),
+            swc_visit::Either::Right(visitor) => Visit::visit_childs(visitor, node),
         }
     }
 
@@ -596,14 +655,10 @@ where
     }
 
     #[inline]
-    fn visit_emphasis_and_strong_emphasis(&mut self, node: &EmphasisAndStrongEmphasis) {
+    fn visit_emphasis(&mut self, node: &Emphasis) {
         match self {
-            swc_visit::Either::Left(visitor) => {
-                Visit::visit_emphasis_and_strong_emphasis(visitor, node)
-            }
-            swc_visit::Either::Right(visitor) => {
-                Visit::visit_emphasis_and_strong_emphasis(visitor, node)
-            }
+            swc_visit::Either::Left(visitor) => Visit::visit_emphasis(visitor, node),
+            swc_visit::Either::Right(visitor) => Visit::visit_emphasis(visitor, node),
         }
     }
 
@@ -656,14 +711,6 @@ where
     }
 
     #[inline]
-    fn visit_inline_blocks(&mut self, node: &[InlineBlock]) {
-        match self {
-            swc_visit::Either::Left(visitor) => Visit::visit_inline_blocks(visitor, node),
-            swc_visit::Either::Right(visitor) => Visit::visit_inline_blocks(visitor, node),
-        }
-    }
-
-    #[inline]
     fn visit_leaf_block(&mut self, node: &LeafBlock) {
         match self {
             swc_visit::Either::Left(visitor) => Visit::visit_leaf_block(visitor, node),
@@ -704,6 +751,14 @@ where
         match self {
             swc_visit::Either::Left(visitor) => Visit::visit_list_item(visitor, node),
             swc_visit::Either::Right(visitor) => Visit::visit_list_item(visitor, node),
+        }
+    }
+
+    #[inline]
+    fn visit_opt_atom(&mut self, node: &Option<swc_atoms::Atom>) {
+        match self {
+            swc_visit::Either::Left(visitor) => Visit::visit_opt_atom(visitor, node),
+            swc_visit::Either::Right(visitor) => Visit::visit_opt_atom(visitor, node),
         }
     }
 
@@ -756,10 +811,26 @@ where
     }
 
     #[inline]
+    fn visit_strong_emphasis(&mut self, node: &StrongEmphasis) {
+        match self {
+            swc_visit::Either::Left(visitor) => Visit::visit_strong_emphasis(visitor, node),
+            swc_visit::Either::Right(visitor) => Visit::visit_strong_emphasis(visitor, node),
+        }
+    }
+
+    #[inline]
     fn visit_textual_content(&mut self, node: &TextualContent) {
         match self {
             swc_visit::Either::Left(visitor) => Visit::visit_textual_content(visitor, node),
             swc_visit::Either::Right(visitor) => Visit::visit_textual_content(visitor, node),
+        }
+    }
+
+    #[inline]
+    fn visit_textual_contents(&mut self, node: &[TextualContent]) {
+        match self {
+            swc_visit::Either::Left(visitor) => Visit::visit_textual_contents(visitor, node),
+            swc_visit::Either::Right(visitor) => Visit::visit_textual_contents(visitor, node),
         }
     }
 
@@ -775,6 +846,14 @@ impl<V> Visit for ::swc_visit::Optional<V>
 where
     V: Visit,
 {
+    #[inline]
+    fn visit_atom(&mut self, node: &swc_atoms::Atom) {
+        if self.enabled {
+            <V as Visit>::visit_atom(&mut self.visitor, node)
+        } else {
+        }
+    }
+
     #[inline]
     fn visit_atx_heading(&mut self, node: &ATXHeading) {
         if self.enabled {
@@ -800,14 +879,6 @@ where
     }
 
     #[inline]
-    fn visit_block(&mut self, node: &Block) {
-        if self.enabled {
-            <V as Visit>::visit_block(&mut self.visitor, node)
-        } else {
-        }
-    }
-
-    #[inline]
     fn visit_block_quote(&mut self, node: &BlockQuote) {
         if self.enabled {
             <V as Visit>::visit_block_quote(&mut self.visitor, node)
@@ -816,9 +887,17 @@ where
     }
 
     #[inline]
-    fn visit_blocks(&mut self, node: &[Block]) {
+    fn visit_child(&mut self, node: &Child) {
         if self.enabled {
-            <V as Visit>::visit_blocks(&mut self.visitor, node)
+            <V as Visit>::visit_child(&mut self.visitor, node)
+        } else {
+        }
+    }
+
+    #[inline]
+    fn visit_childs(&mut self, node: &[Child]) {
+        if self.enabled {
+            <V as Visit>::visit_childs(&mut self.visitor, node)
         } else {
         }
     }
@@ -848,9 +927,9 @@ where
     }
 
     #[inline]
-    fn visit_emphasis_and_strong_emphasis(&mut self, node: &EmphasisAndStrongEmphasis) {
+    fn visit_emphasis(&mut self, node: &Emphasis) {
         if self.enabled {
-            <V as Visit>::visit_emphasis_and_strong_emphasis(&mut self.visitor, node)
+            <V as Visit>::visit_emphasis(&mut self.visitor, node)
         } else {
         }
     }
@@ -904,14 +983,6 @@ where
     }
 
     #[inline]
-    fn visit_inline_blocks(&mut self, node: &[InlineBlock]) {
-        if self.enabled {
-            <V as Visit>::visit_inline_blocks(&mut self.visitor, node)
-        } else {
-        }
-    }
-
-    #[inline]
     fn visit_leaf_block(&mut self, node: &LeafBlock) {
         if self.enabled {
             <V as Visit>::visit_leaf_block(&mut self.visitor, node)
@@ -947,6 +1018,14 @@ where
     fn visit_list_item(&mut self, node: &ListItem) {
         if self.enabled {
             <V as Visit>::visit_list_item(&mut self.visitor, node)
+        } else {
+        }
+    }
+
+    #[inline]
+    fn visit_opt_atom(&mut self, node: &Option<swc_atoms::Atom>) {
+        if self.enabled {
+            <V as Visit>::visit_opt_atom(&mut self.visitor, node)
         } else {
         }
     }
@@ -1000,9 +1079,25 @@ where
     }
 
     #[inline]
+    fn visit_strong_emphasis(&mut self, node: &StrongEmphasis) {
+        if self.enabled {
+            <V as Visit>::visit_strong_emphasis(&mut self.visitor, node)
+        } else {
+        }
+    }
+
+    #[inline]
     fn visit_textual_content(&mut self, node: &TextualContent) {
         if self.enabled {
             <V as Visit>::visit_textual_content(&mut self.visitor, node)
+        } else {
+        }
+    }
+
+    #[inline]
+    fn visit_textual_contents(&mut self, node: &[TextualContent]) {
+        if self.enabled {
+            <V as Visit>::visit_textual_contents(&mut self.visitor, node)
         } else {
         }
     }
@@ -1039,7 +1134,7 @@ impl<V: ?Sized + Visit> VisitWith<V> for ATXHeading {
                     <swc_common::Span as VisitWith<V>>::visit_with(span, visitor)
                 };
                 {
-                    <Vec<InlineBlock> as VisitWith<V>>::visit_with(children, visitor)
+                    <Vec<Child> as VisitWith<V>>::visit_with(children, visitor)
                 };
             }
         }
@@ -1077,26 +1172,6 @@ impl<V: ?Sized + Visit> VisitWith<V> for BlankLine {
         }
     }
 }
-impl<V: ?Sized + Visit> VisitWith<V> for Block {
-    #[doc = "Calls [Visit`::visit_block`] with `self`."]
-    fn visit_with(&self, visitor: &mut V) {
-        <V as Visit>::visit_block(visitor, self)
-    }
-
-    fn visit_children_with(&self, visitor: &mut V) {
-        match self {
-            Block::Leaf { 0: _field_0 } => {
-                <LeafBlock as VisitWith<V>>::visit_with(_field_0, visitor);
-            }
-            Block::Container { 0: _field_0 } => {
-                <ContainerBlock as VisitWith<V>>::visit_with(_field_0, visitor);
-            }
-            Block::Inline { 0: _field_0 } => {
-                <InlineBlock as VisitWith<V>>::visit_with(_field_0, visitor);
-            }
-        }
-    }
-}
 impl<V: ?Sized + Visit> VisitWith<V> for BlockQuote {
     #[doc = "Calls [Visit`::visit_block_quote`] with `self`."]
     fn visit_with(&self, visitor: &mut V) {
@@ -1105,10 +1180,33 @@ impl<V: ?Sized + Visit> VisitWith<V> for BlockQuote {
 
     fn visit_children_with(&self, visitor: &mut V) {
         match self {
-            BlockQuote { span } => {
+            BlockQuote { span, children } => {
                 {
                     <swc_common::Span as VisitWith<V>>::visit_with(span, visitor)
                 };
+                {
+                    <Vec<Child> as VisitWith<V>>::visit_with(children, visitor)
+                };
+            }
+        }
+    }
+}
+impl<V: ?Sized + Visit> VisitWith<V> for Child {
+    #[doc = "Calls [Visit`::visit_child`] with `self`."]
+    fn visit_with(&self, visitor: &mut V) {
+        <V as Visit>::visit_child(visitor, self)
+    }
+
+    fn visit_children_with(&self, visitor: &mut V) {
+        match self {
+            Child::Leaf { 0: _field_0 } => {
+                <LeafBlock as VisitWith<V>>::visit_with(_field_0, visitor);
+            }
+            Child::Container { 0: _field_0 } => {
+                <ContainerBlock as VisitWith<V>>::visit_with(_field_0, visitor);
+            }
+            Child::Inline { 0: _field_0 } => {
+                <InlineBlock as VisitWith<V>>::visit_with(_field_0, visitor);
             }
         }
     }
@@ -1167,23 +1265,26 @@ impl<V: ?Sized + Visit> VisitWith<V> for Document {
                     <swc_common::Span as VisitWith<V>>::visit_with(span, visitor)
                 };
                 {
-                    <Vec<Block> as VisitWith<V>>::visit_with(children, visitor)
+                    <Vec<Child> as VisitWith<V>>::visit_with(children, visitor)
                 };
             }
         }
     }
 }
-impl<V: ?Sized + Visit> VisitWith<V> for EmphasisAndStrongEmphasis {
-    #[doc = "Calls [Visit`::visit_emphasis_and_strong_emphasis`] with `self`."]
+impl<V: ?Sized + Visit> VisitWith<V> for Emphasis {
+    #[doc = "Calls [Visit`::visit_emphasis`] with `self`."]
     fn visit_with(&self, visitor: &mut V) {
-        <V as Visit>::visit_emphasis_and_strong_emphasis(visitor, self)
+        <V as Visit>::visit_emphasis(visitor, self)
     }
 
     fn visit_children_with(&self, visitor: &mut V) {
         match self {
-            EmphasisAndStrongEmphasis { span } => {
+            Emphasis { span, content } => {
                 {
                     <swc_common::Span as VisitWith<V>>::visit_with(span, visitor)
+                };
+                {
+                    <Vec<TextualContent> as VisitWith<V>>::visit_with(content, visitor)
                 };
             }
         }
@@ -1197,9 +1298,15 @@ impl<V: ?Sized + Visit> VisitWith<V> for FencedCodeBlock {
 
     fn visit_children_with(&self, visitor: &mut V) {
         match self {
-            FencedCodeBlock { span } => {
+            FencedCodeBlock { span, info, code } => {
                 {
                     <swc_common::Span as VisitWith<V>>::visit_with(span, visitor)
+                };
+                {
+                    <Option<swc_atoms::Atom> as VisitWith<V>>::visit_with(info, visitor)
+                };
+                {
+                    <swc_atoms::Atom as VisitWith<V>>::visit_with(code, visitor)
                 };
             }
         }
@@ -1213,9 +1320,12 @@ impl<V: ?Sized + Visit> VisitWith<V> for HTMLBlock {
 
     fn visit_children_with(&self, visitor: &mut V) {
         match self {
-            HTMLBlock { span } => {
+            HTMLBlock { span, html } => {
                 {
                     <swc_common::Span as VisitWith<V>>::visit_with(span, visitor)
+                };
+                {
+                    <swc_atoms::Atom as VisitWith<V>>::visit_with(html, visitor)
                 };
             }
         }
@@ -1261,9 +1371,12 @@ impl<V: ?Sized + Visit> VisitWith<V> for IndentedCodeBlock {
 
     fn visit_children_with(&self, visitor: &mut V) {
         match self {
-            IndentedCodeBlock { span } => {
+            IndentedCodeBlock { span, code } => {
                 {
                     <swc_common::Span as VisitWith<V>>::visit_with(span, visitor)
+                };
+                {
+                    <swc_atoms::Atom as VisitWith<V>>::visit_with(code, visitor)
                 };
             }
         }
@@ -1280,8 +1393,11 @@ impl<V: ?Sized + Visit> VisitWith<V> for InlineBlock {
             InlineBlock::CodeSpan { 0: _field_0 } => {
                 <CodeSpan as VisitWith<V>>::visit_with(_field_0, visitor);
             }
-            InlineBlock::EmphasisAndStrongEmphasis { 0: _field_0 } => {
-                <EmphasisAndStrongEmphasis as VisitWith<V>>::visit_with(_field_0, visitor);
+            InlineBlock::Emphasis { 0: _field_0 } => {
+                <Emphasis as VisitWith<V>>::visit_with(_field_0, visitor);
+            }
+            InlineBlock::StrongEmphasis { 0: _field_0 } => {
+                <StrongEmphasis as VisitWith<V>>::visit_with(_field_0, visitor);
             }
             InlineBlock::Link { 0: _field_0 } => {
                 <Link as VisitWith<V>>::visit_with(_field_0, visitor);
@@ -1369,9 +1485,23 @@ impl<V: ?Sized + Visit> VisitWith<V> for LinkReferenceDefinition {
 
     fn visit_children_with(&self, visitor: &mut V) {
         match self {
-            LinkReferenceDefinition { span } => {
+            LinkReferenceDefinition {
+                span,
+                label,
+                destination,
+                title,
+            } => {
                 {
                     <swc_common::Span as VisitWith<V>>::visit_with(span, visitor)
+                };
+                {
+                    <swc_atoms::Atom as VisitWith<V>>::visit_with(label, visitor)
+                };
+                {
+                    <swc_atoms::Atom as VisitWith<V>>::visit_with(destination, visitor)
+                };
+                {
+                    <Option<swc_atoms::Atom> as VisitWith<V>>::visit_with(title, visitor)
                 };
             }
         }
@@ -1422,7 +1552,7 @@ impl<V: ?Sized + Visit> VisitWith<V> for Paragraph {
                     <swc_common::Span as VisitWith<V>>::visit_with(span, visitor)
                 };
                 {
-                    <Vec<InlineBlock> as VisitWith<V>>::visit_with(children, visitor)
+                    <Vec<Child> as VisitWith<V>>::visit_with(children, visitor)
                 };
             }
         }
@@ -1461,7 +1591,7 @@ impl<V: ?Sized + Visit> VisitWith<V> for SetextHeading {
                     <swc_common::Span as VisitWith<V>>::visit_with(span, visitor)
                 };
                 {
-                    <Vec<InlineBlock> as VisitWith<V>>::visit_with(children, visitor)
+                    <Vec<Child> as VisitWith<V>>::visit_with(children, visitor)
                 };
             }
         }
@@ -1478,6 +1608,25 @@ impl<V: ?Sized + Visit> VisitWith<V> for SoftLineBreak {
             SoftLineBreak { span } => {
                 {
                     <swc_common::Span as VisitWith<V>>::visit_with(span, visitor)
+                };
+            }
+        }
+    }
+}
+impl<V: ?Sized + Visit> VisitWith<V> for StrongEmphasis {
+    #[doc = "Calls [Visit`::visit_strong_emphasis`] with `self`."]
+    fn visit_with(&self, visitor: &mut V) {
+        <V as Visit>::visit_strong_emphasis(visitor, self)
+    }
+
+    fn visit_children_with(&self, visitor: &mut V) {
+        match self {
+            StrongEmphasis { span, content } => {
+                {
+                    <swc_common::Span as VisitWith<V>>::visit_with(span, visitor)
+                };
+                {
+                    <Vec<TextualContent> as VisitWith<V>>::visit_with(content, visitor)
                 };
             }
         }
@@ -1518,30 +1667,44 @@ impl<V: ?Sized + Visit> VisitWith<V> for ThematicBreak {
         }
     }
 }
-impl<V: ?Sized + Visit> VisitWith<V> for [Block] {
-    #[doc = "Calls [Visit`::visit_blocks`] with `self`. (Extra impl)"]
+impl<V: ?Sized + Visit> VisitWith<V> for swc_atoms::Atom {
+    #[doc = "Calls [Visit`::visit_atom`] with `self`. (Extra impl)"]
     #[inline]
     fn visit_with(&self, visitor: &mut V) {
-        <V as Visit>::visit_blocks(visitor, self)
+        <V as Visit>::visit_atom(visitor, self)
     }
 
     #[inline]
     fn visit_children_with(&self, visitor: &mut V) {
-        self.iter()
-            .for_each(|item| <Block as VisitWith<V>>::visit_with(item, visitor))
+        {}
     }
 }
-impl<V: ?Sized + Visit> VisitWith<V> for [InlineBlock] {
-    #[doc = "Calls [Visit`::visit_inline_blocks`] with `self`. (Extra impl)"]
+impl<V: ?Sized + Visit> VisitWith<V> for [Child] {
+    #[doc = "Calls [Visit`::visit_childs`] with `self`. (Extra impl)"]
     #[inline]
     fn visit_with(&self, visitor: &mut V) {
-        <V as Visit>::visit_inline_blocks(visitor, self)
+        <V as Visit>::visit_childs(visitor, self)
     }
 
     #[inline]
     fn visit_children_with(&self, visitor: &mut V) {
         self.iter()
-            .for_each(|item| <InlineBlock as VisitWith<V>>::visit_with(item, visitor))
+            .for_each(|item| <Child as VisitWith<V>>::visit_with(item, visitor))
+    }
+}
+impl<V: ?Sized + Visit> VisitWith<V> for Option<swc_atoms::Atom> {
+    #[doc = "Calls [Visit`::visit_opt_atom`] with `self`. (Extra impl)"]
+    #[inline]
+    fn visit_with(&self, visitor: &mut V) {
+        <V as Visit>::visit_opt_atom(visitor, self)
+    }
+
+    #[inline]
+    fn visit_children_with(&self, visitor: &mut V) {
+        match self {
+            Some(inner) => <swc_atoms::Atom as VisitWith<V>>::visit_with(inner, visitor),
+            None => {}
+        }
     }
 }
 impl<V: ?Sized + Visit> VisitWith<V> for swc_common::Span {
@@ -1566,6 +1729,19 @@ impl<V: ?Sized + Visit> VisitWith<V> for String {
     #[inline]
     fn visit_children_with(&self, visitor: &mut V) {
         {}
+    }
+}
+impl<V: ?Sized + Visit> VisitWith<V> for [TextualContent] {
+    #[doc = "Calls [Visit`::visit_textual_contents`] with `self`. (Extra impl)"]
+    #[inline]
+    fn visit_with(&self, visitor: &mut V) {
+        <V as Visit>::visit_textual_contents(visitor, self)
+    }
+
+    #[inline]
+    fn visit_children_with(&self, visitor: &mut V) {
+        self.iter()
+            .for_each(|item| <TextualContent as VisitWith<V>>::visit_with(item, visitor))
     }
 }
 impl<V, T> VisitWith<V> for std::boxed::Box<T>
@@ -1606,6 +1782,19 @@ where
 #[cfg(any(docsrs, feature = "path"))]
 #[cfg_attr(docsrs, doc(cfg(feature = "path")))]
 pub trait VisitAstPath {
+    #[doc = "Visit a node of type `swc_atoms :: Atom`.\n\nBy default, this method calls \
+             [`swc_atoms :: Atom::visit_children_with_ast_path`]. If you want to recurse, you need \
+             to call it manually."]
+    #[inline]
+    fn visit_atom<'ast: 'r, 'r>(
+        &mut self,
+        node: &'ast swc_atoms::Atom,
+        __ast_path: &mut AstNodePath<'r>,
+    ) {
+        <swc_atoms::Atom as VisitWithAstPath<Self>>::visit_children_with_ast_path(
+            node, self, __ast_path,
+        )
+    }
     #[doc = "Visit a node of type `ATXHeading`.\n\nBy default, this method calls \
              [`ATXHeading::visit_children_with_ast_path`]. If you want to recurse, you need to \
              call it manually."]
@@ -1639,13 +1828,6 @@ pub trait VisitAstPath {
     ) {
         <BlankLine as VisitWithAstPath<Self>>::visit_children_with_ast_path(node, self, __ast_path)
     }
-    #[doc = "Visit a node of type `Block`.\n\nBy default, this method calls \
-             [`Block::visit_children_with_ast_path`]. If you want to recurse, you need to call it \
-             manually."]
-    #[inline]
-    fn visit_block<'ast: 'r, 'r>(&mut self, node: &'ast Block, __ast_path: &mut AstNodePath<'r>) {
-        <Block as VisitWithAstPath<Self>>::visit_children_with_ast_path(node, self, __ast_path)
-    }
     #[doc = "Visit a node of type `BlockQuote`.\n\nBy default, this method calls \
              [`BlockQuote::visit_children_with_ast_path`]. If you want to recurse, you need to \
              call it manually."]
@@ -1657,16 +1839,23 @@ pub trait VisitAstPath {
     ) {
         <BlockQuote as VisitWithAstPath<Self>>::visit_children_with_ast_path(node, self, __ast_path)
     }
-    #[doc = "Visit a node of type `Vec < Block >`.\n\nBy default, this method calls [`Vec < Block \
+    #[doc = "Visit a node of type `Child`.\n\nBy default, this method calls \
+             [`Child::visit_children_with_ast_path`]. If you want to recurse, you need to call it \
+             manually."]
+    #[inline]
+    fn visit_child<'ast: 'r, 'r>(&mut self, node: &'ast Child, __ast_path: &mut AstNodePath<'r>) {
+        <Child as VisitWithAstPath<Self>>::visit_children_with_ast_path(node, self, __ast_path)
+    }
+    #[doc = "Visit a node of type `Vec < Child >`.\n\nBy default, this method calls [`Vec < Child \
              >::visit_children_with_ast_path`]. If you want to recurse, you need to call it \
              manually."]
     #[inline]
-    fn visit_blocks<'ast: 'r, 'r>(
+    fn visit_childs<'ast: 'r, 'r>(
         &mut self,
-        node: &'ast [Block],
+        node: &'ast [Child],
         __ast_path: &mut AstNodePath<'r>,
     ) {
-        <[Block] as VisitWithAstPath<Self>>::visit_children_with_ast_path(node, self, __ast_path)
+        <[Child] as VisitWithAstPath<Self>>::visit_children_with_ast_path(node, self, __ast_path)
     }
     #[doc = "Visit a node of type `CodeSpan`.\n\nBy default, this method calls \
              [`CodeSpan::visit_children_with_ast_path`]. If you want to recurse, you need to call \
@@ -1703,18 +1892,16 @@ pub trait VisitAstPath {
     ) {
         <Document as VisitWithAstPath<Self>>::visit_children_with_ast_path(node, self, __ast_path)
     }
-    #[doc = "Visit a node of type `EmphasisAndStrongEmphasis`.\n\nBy default, this method calls \
-             [`EmphasisAndStrongEmphasis::visit_children_with_ast_path`]. If you want to recurse, \
-             you need to call it manually."]
+    #[doc = "Visit a node of type `Emphasis`.\n\nBy default, this method calls \
+             [`Emphasis::visit_children_with_ast_path`]. If you want to recurse, you need to call \
+             it manually."]
     #[inline]
-    fn visit_emphasis_and_strong_emphasis<'ast: 'r, 'r>(
+    fn visit_emphasis<'ast: 'r, 'r>(
         &mut self,
-        node: &'ast EmphasisAndStrongEmphasis,
+        node: &'ast Emphasis,
         __ast_path: &mut AstNodePath<'r>,
     ) {
-        <EmphasisAndStrongEmphasis as VisitWithAstPath<Self>>::visit_children_with_ast_path(
-            node, self, __ast_path,
-        )
+        <Emphasis as VisitWithAstPath<Self>>::visit_children_with_ast_path(node, self, __ast_path)
     }
     #[doc = "Visit a node of type `FencedCodeBlock`.\n\nBy default, this method calls \
              [`FencedCodeBlock::visit_children_with_ast_path`]. If you want to recurse, you need \
@@ -1786,19 +1973,6 @@ pub trait VisitAstPath {
             node, self, __ast_path,
         )
     }
-    #[doc = "Visit a node of type `Vec < InlineBlock >`.\n\nBy default, this method calls [`Vec < \
-             InlineBlock >::visit_children_with_ast_path`]. If you want to recurse, you need to \
-             call it manually."]
-    #[inline]
-    fn visit_inline_blocks<'ast: 'r, 'r>(
-        &mut self,
-        node: &'ast [InlineBlock],
-        __ast_path: &mut AstNodePath<'r>,
-    ) {
-        <[InlineBlock] as VisitWithAstPath<Self>>::visit_children_with_ast_path(
-            node, self, __ast_path,
-        )
-    }
     #[doc = "Visit a node of type `LeafBlock`.\n\nBy default, this method calls \
              [`LeafBlock::visit_children_with_ast_path`]. If you want to recurse, you need to call \
              it manually."]
@@ -1847,6 +2021,19 @@ pub trait VisitAstPath {
         __ast_path: &mut AstNodePath<'r>,
     ) {
         <ListItem as VisitWithAstPath<Self>>::visit_children_with_ast_path(node, self, __ast_path)
+    }
+    #[doc = "Visit a node of type `Option < swc_atoms :: Atom >`.\n\nBy default, this method calls \
+             [`Option < swc_atoms :: Atom >::visit_children_with_ast_path`]. If you want to \
+             recurse, you need to call it manually."]
+    #[inline]
+    fn visit_opt_atom<'ast: 'r, 'r>(
+        &mut self,
+        node: &'ast Option<swc_atoms::Atom>,
+        __ast_path: &mut AstNodePath<'r>,
+    ) {
+        <Option<swc_atoms::Atom> as VisitWithAstPath<Self>>::visit_children_with_ast_path(
+            node, self, __ast_path,
+        )
     }
     #[doc = "Visit a node of type `Paragraph`.\n\nBy default, this method calls \
              [`Paragraph::visit_children_with_ast_path`]. If you want to recurse, you need to call \
@@ -1916,6 +2103,19 @@ pub trait VisitAstPath {
     fn visit_string<'ast: 'r, 'r>(&mut self, node: &'ast String, __ast_path: &mut AstNodePath<'r>) {
         <String as VisitWithAstPath<Self>>::visit_children_with_ast_path(node, self, __ast_path)
     }
+    #[doc = "Visit a node of type `StrongEmphasis`.\n\nBy default, this method calls \
+             [`StrongEmphasis::visit_children_with_ast_path`]. If you want to recurse, you need to \
+             call it manually."]
+    #[inline]
+    fn visit_strong_emphasis<'ast: 'r, 'r>(
+        &mut self,
+        node: &'ast StrongEmphasis,
+        __ast_path: &mut AstNodePath<'r>,
+    ) {
+        <StrongEmphasis as VisitWithAstPath<Self>>::visit_children_with_ast_path(
+            node, self, __ast_path,
+        )
+    }
     #[doc = "Visit a node of type `TextualContent`.\n\nBy default, this method calls \
              [`TextualContent::visit_children_with_ast_path`]. If you want to recurse, you need to \
              call it manually."]
@@ -1926,6 +2126,19 @@ pub trait VisitAstPath {
         __ast_path: &mut AstNodePath<'r>,
     ) {
         <TextualContent as VisitWithAstPath<Self>>::visit_children_with_ast_path(
+            node, self, __ast_path,
+        )
+    }
+    #[doc = "Visit a node of type `Vec < TextualContent >`.\n\nBy default, this method calls [`Vec \
+             < TextualContent >::visit_children_with_ast_path`]. If you want to recurse, you need \
+             to call it manually."]
+    #[inline]
+    fn visit_textual_contents<'ast: 'r, 'r>(
+        &mut self,
+        node: &'ast [TextualContent],
+        __ast_path: &mut AstNodePath<'r>,
+    ) {
+        <[TextualContent] as VisitWithAstPath<Self>>::visit_children_with_ast_path(
             node, self, __ast_path,
         )
     }
@@ -1950,6 +2163,15 @@ where
     V: ?Sized + VisitAstPath,
 {
     #[inline]
+    fn visit_atom<'ast: 'r, 'r>(
+        &mut self,
+        node: &'ast swc_atoms::Atom,
+        __ast_path: &mut AstNodePath<'r>,
+    ) {
+        <V as VisitAstPath>::visit_atom(&mut **self, node, __ast_path)
+    }
+
+    #[inline]
     fn visit_atx_heading<'ast: 'r, 'r>(
         &mut self,
         node: &'ast ATXHeading,
@@ -1977,11 +2199,6 @@ where
     }
 
     #[inline]
-    fn visit_block<'ast: 'r, 'r>(&mut self, node: &'ast Block, __ast_path: &mut AstNodePath<'r>) {
-        <V as VisitAstPath>::visit_block(&mut **self, node, __ast_path)
-    }
-
-    #[inline]
     fn visit_block_quote<'ast: 'r, 'r>(
         &mut self,
         node: &'ast BlockQuote,
@@ -1991,12 +2208,17 @@ where
     }
 
     #[inline]
-    fn visit_blocks<'ast: 'r, 'r>(
+    fn visit_child<'ast: 'r, 'r>(&mut self, node: &'ast Child, __ast_path: &mut AstNodePath<'r>) {
+        <V as VisitAstPath>::visit_child(&mut **self, node, __ast_path)
+    }
+
+    #[inline]
+    fn visit_childs<'ast: 'r, 'r>(
         &mut self,
-        node: &'ast [Block],
+        node: &'ast [Child],
         __ast_path: &mut AstNodePath<'r>,
     ) {
-        <V as VisitAstPath>::visit_blocks(&mut **self, node, __ast_path)
+        <V as VisitAstPath>::visit_childs(&mut **self, node, __ast_path)
     }
 
     #[inline]
@@ -2027,12 +2249,12 @@ where
     }
 
     #[inline]
-    fn visit_emphasis_and_strong_emphasis<'ast: 'r, 'r>(
+    fn visit_emphasis<'ast: 'r, 'r>(
         &mut self,
-        node: &'ast EmphasisAndStrongEmphasis,
+        node: &'ast Emphasis,
         __ast_path: &mut AstNodePath<'r>,
     ) {
-        <V as VisitAstPath>::visit_emphasis_and_strong_emphasis(&mut **self, node, __ast_path)
+        <V as VisitAstPath>::visit_emphasis(&mut **self, node, __ast_path)
     }
 
     #[inline]
@@ -2086,15 +2308,6 @@ where
     }
 
     #[inline]
-    fn visit_inline_blocks<'ast: 'r, 'r>(
-        &mut self,
-        node: &'ast [InlineBlock],
-        __ast_path: &mut AstNodePath<'r>,
-    ) {
-        <V as VisitAstPath>::visit_inline_blocks(&mut **self, node, __ast_path)
-    }
-
-    #[inline]
     fn visit_leaf_block<'ast: 'r, 'r>(
         &mut self,
         node: &'ast LeafBlock,
@@ -2129,6 +2342,15 @@ where
         __ast_path: &mut AstNodePath<'r>,
     ) {
         <V as VisitAstPath>::visit_list_item(&mut **self, node, __ast_path)
+    }
+
+    #[inline]
+    fn visit_opt_atom<'ast: 'r, 'r>(
+        &mut self,
+        node: &'ast Option<swc_atoms::Atom>,
+        __ast_path: &mut AstNodePath<'r>,
+    ) {
+        <V as VisitAstPath>::visit_opt_atom(&mut **self, node, __ast_path)
     }
 
     #[inline]
@@ -2182,12 +2404,30 @@ where
     }
 
     #[inline]
+    fn visit_strong_emphasis<'ast: 'r, 'r>(
+        &mut self,
+        node: &'ast StrongEmphasis,
+        __ast_path: &mut AstNodePath<'r>,
+    ) {
+        <V as VisitAstPath>::visit_strong_emphasis(&mut **self, node, __ast_path)
+    }
+
+    #[inline]
     fn visit_textual_content<'ast: 'r, 'r>(
         &mut self,
         node: &'ast TextualContent,
         __ast_path: &mut AstNodePath<'r>,
     ) {
         <V as VisitAstPath>::visit_textual_content(&mut **self, node, __ast_path)
+    }
+
+    #[inline]
+    fn visit_textual_contents<'ast: 'r, 'r>(
+        &mut self,
+        node: &'ast [TextualContent],
+        __ast_path: &mut AstNodePath<'r>,
+    ) {
+        <V as VisitAstPath>::visit_textual_contents(&mut **self, node, __ast_path)
     }
 
     #[inline]
@@ -2206,6 +2446,15 @@ where
     V: ?Sized + VisitAstPath,
 {
     #[inline]
+    fn visit_atom<'ast: 'r, 'r>(
+        &mut self,
+        node: &'ast swc_atoms::Atom,
+        __ast_path: &mut AstNodePath<'r>,
+    ) {
+        <V as VisitAstPath>::visit_atom(&mut **self, node, __ast_path)
+    }
+
+    #[inline]
     fn visit_atx_heading<'ast: 'r, 'r>(
         &mut self,
         node: &'ast ATXHeading,
@@ -2233,11 +2482,6 @@ where
     }
 
     #[inline]
-    fn visit_block<'ast: 'r, 'r>(&mut self, node: &'ast Block, __ast_path: &mut AstNodePath<'r>) {
-        <V as VisitAstPath>::visit_block(&mut **self, node, __ast_path)
-    }
-
-    #[inline]
     fn visit_block_quote<'ast: 'r, 'r>(
         &mut self,
         node: &'ast BlockQuote,
@@ -2247,12 +2491,17 @@ where
     }
 
     #[inline]
-    fn visit_blocks<'ast: 'r, 'r>(
+    fn visit_child<'ast: 'r, 'r>(&mut self, node: &'ast Child, __ast_path: &mut AstNodePath<'r>) {
+        <V as VisitAstPath>::visit_child(&mut **self, node, __ast_path)
+    }
+
+    #[inline]
+    fn visit_childs<'ast: 'r, 'r>(
         &mut self,
-        node: &'ast [Block],
+        node: &'ast [Child],
         __ast_path: &mut AstNodePath<'r>,
     ) {
-        <V as VisitAstPath>::visit_blocks(&mut **self, node, __ast_path)
+        <V as VisitAstPath>::visit_childs(&mut **self, node, __ast_path)
     }
 
     #[inline]
@@ -2283,12 +2532,12 @@ where
     }
 
     #[inline]
-    fn visit_emphasis_and_strong_emphasis<'ast: 'r, 'r>(
+    fn visit_emphasis<'ast: 'r, 'r>(
         &mut self,
-        node: &'ast EmphasisAndStrongEmphasis,
+        node: &'ast Emphasis,
         __ast_path: &mut AstNodePath<'r>,
     ) {
-        <V as VisitAstPath>::visit_emphasis_and_strong_emphasis(&mut **self, node, __ast_path)
+        <V as VisitAstPath>::visit_emphasis(&mut **self, node, __ast_path)
     }
 
     #[inline]
@@ -2342,15 +2591,6 @@ where
     }
 
     #[inline]
-    fn visit_inline_blocks<'ast: 'r, 'r>(
-        &mut self,
-        node: &'ast [InlineBlock],
-        __ast_path: &mut AstNodePath<'r>,
-    ) {
-        <V as VisitAstPath>::visit_inline_blocks(&mut **self, node, __ast_path)
-    }
-
-    #[inline]
     fn visit_leaf_block<'ast: 'r, 'r>(
         &mut self,
         node: &'ast LeafBlock,
@@ -2385,6 +2625,15 @@ where
         __ast_path: &mut AstNodePath<'r>,
     ) {
         <V as VisitAstPath>::visit_list_item(&mut **self, node, __ast_path)
+    }
+
+    #[inline]
+    fn visit_opt_atom<'ast: 'r, 'r>(
+        &mut self,
+        node: &'ast Option<swc_atoms::Atom>,
+        __ast_path: &mut AstNodePath<'r>,
+    ) {
+        <V as VisitAstPath>::visit_opt_atom(&mut **self, node, __ast_path)
     }
 
     #[inline]
@@ -2438,12 +2687,30 @@ where
     }
 
     #[inline]
+    fn visit_strong_emphasis<'ast: 'r, 'r>(
+        &mut self,
+        node: &'ast StrongEmphasis,
+        __ast_path: &mut AstNodePath<'r>,
+    ) {
+        <V as VisitAstPath>::visit_strong_emphasis(&mut **self, node, __ast_path)
+    }
+
+    #[inline]
     fn visit_textual_content<'ast: 'r, 'r>(
         &mut self,
         node: &'ast TextualContent,
         __ast_path: &mut AstNodePath<'r>,
     ) {
         <V as VisitAstPath>::visit_textual_content(&mut **self, node, __ast_path)
+    }
+
+    #[inline]
+    fn visit_textual_contents<'ast: 'r, 'r>(
+        &mut self,
+        node: &'ast [TextualContent],
+        __ast_path: &mut AstNodePath<'r>,
+    ) {
+        <V as VisitAstPath>::visit_textual_contents(&mut **self, node, __ast_path)
     }
 
     #[inline]
@@ -2463,6 +2730,20 @@ where
     B: VisitAstPath,
 {
     #[inline]
+    fn visit_atom<'ast: 'r, 'r>(
+        &mut self,
+        node: &'ast swc_atoms::Atom,
+        __ast_path: &mut AstNodePath<'r>,
+    ) {
+        match self {
+            swc_visit::Either::Left(visitor) => VisitAstPath::visit_atom(visitor, node, __ast_path),
+            swc_visit::Either::Right(visitor) => {
+                VisitAstPath::visit_atom(visitor, node, __ast_path)
+            }
+        }
+    }
+
+    #[inline]
     fn visit_atx_heading<'ast: 'r, 'r>(
         &mut self,
         node: &'ast ATXHeading,
@@ -2511,18 +2792,6 @@ where
     }
 
     #[inline]
-    fn visit_block<'ast: 'r, 'r>(&mut self, node: &'ast Block, __ast_path: &mut AstNodePath<'r>) {
-        match self {
-            swc_visit::Either::Left(visitor) => {
-                VisitAstPath::visit_block(visitor, node, __ast_path)
-            }
-            swc_visit::Either::Right(visitor) => {
-                VisitAstPath::visit_block(visitor, node, __ast_path)
-            }
-        }
-    }
-
-    #[inline]
     fn visit_block_quote<'ast: 'r, 'r>(
         &mut self,
         node: &'ast BlockQuote,
@@ -2539,17 +2808,29 @@ where
     }
 
     #[inline]
-    fn visit_blocks<'ast: 'r, 'r>(
+    fn visit_child<'ast: 'r, 'r>(&mut self, node: &'ast Child, __ast_path: &mut AstNodePath<'r>) {
+        match self {
+            swc_visit::Either::Left(visitor) => {
+                VisitAstPath::visit_child(visitor, node, __ast_path)
+            }
+            swc_visit::Either::Right(visitor) => {
+                VisitAstPath::visit_child(visitor, node, __ast_path)
+            }
+        }
+    }
+
+    #[inline]
+    fn visit_childs<'ast: 'r, 'r>(
         &mut self,
-        node: &'ast [Block],
+        node: &'ast [Child],
         __ast_path: &mut AstNodePath<'r>,
     ) {
         match self {
             swc_visit::Either::Left(visitor) => {
-                VisitAstPath::visit_blocks(visitor, node, __ast_path)
+                VisitAstPath::visit_childs(visitor, node, __ast_path)
             }
             swc_visit::Either::Right(visitor) => {
-                VisitAstPath::visit_blocks(visitor, node, __ast_path)
+                VisitAstPath::visit_childs(visitor, node, __ast_path)
             }
         }
     }
@@ -2603,17 +2884,17 @@ where
     }
 
     #[inline]
-    fn visit_emphasis_and_strong_emphasis<'ast: 'r, 'r>(
+    fn visit_emphasis<'ast: 'r, 'r>(
         &mut self,
-        node: &'ast EmphasisAndStrongEmphasis,
+        node: &'ast Emphasis,
         __ast_path: &mut AstNodePath<'r>,
     ) {
         match self {
             swc_visit::Either::Left(visitor) => {
-                VisitAstPath::visit_emphasis_and_strong_emphasis(visitor, node, __ast_path)
+                VisitAstPath::visit_emphasis(visitor, node, __ast_path)
             }
             swc_visit::Either::Right(visitor) => {
-                VisitAstPath::visit_emphasis_and_strong_emphasis(visitor, node, __ast_path)
+                VisitAstPath::visit_emphasis(visitor, node, __ast_path)
             }
         }
     }
@@ -2706,22 +2987,6 @@ where
             }
             swc_visit::Either::Right(visitor) => {
                 VisitAstPath::visit_inline_block(visitor, node, __ast_path)
-            }
-        }
-    }
-
-    #[inline]
-    fn visit_inline_blocks<'ast: 'r, 'r>(
-        &mut self,
-        node: &'ast [InlineBlock],
-        __ast_path: &mut AstNodePath<'r>,
-    ) {
-        match self {
-            swc_visit::Either::Left(visitor) => {
-                VisitAstPath::visit_inline_blocks(visitor, node, __ast_path)
-            }
-            swc_visit::Either::Right(visitor) => {
-                VisitAstPath::visit_inline_blocks(visitor, node, __ast_path)
             }
         }
     }
@@ -2790,6 +3055,22 @@ where
             }
             swc_visit::Either::Right(visitor) => {
                 VisitAstPath::visit_list_item(visitor, node, __ast_path)
+            }
+        }
+    }
+
+    #[inline]
+    fn visit_opt_atom<'ast: 'r, 'r>(
+        &mut self,
+        node: &'ast Option<swc_atoms::Atom>,
+        __ast_path: &mut AstNodePath<'r>,
+    ) {
+        match self {
+            swc_visit::Either::Left(visitor) => {
+                VisitAstPath::visit_opt_atom(visitor, node, __ast_path)
+            }
+            swc_visit::Either::Right(visitor) => {
+                VisitAstPath::visit_opt_atom(visitor, node, __ast_path)
             }
         }
     }
@@ -2885,6 +3166,22 @@ where
     }
 
     #[inline]
+    fn visit_strong_emphasis<'ast: 'r, 'r>(
+        &mut self,
+        node: &'ast StrongEmphasis,
+        __ast_path: &mut AstNodePath<'r>,
+    ) {
+        match self {
+            swc_visit::Either::Left(visitor) => {
+                VisitAstPath::visit_strong_emphasis(visitor, node, __ast_path)
+            }
+            swc_visit::Either::Right(visitor) => {
+                VisitAstPath::visit_strong_emphasis(visitor, node, __ast_path)
+            }
+        }
+    }
+
+    #[inline]
     fn visit_textual_content<'ast: 'r, 'r>(
         &mut self,
         node: &'ast TextualContent,
@@ -2896,6 +3193,22 @@ where
             }
             swc_visit::Either::Right(visitor) => {
                 VisitAstPath::visit_textual_content(visitor, node, __ast_path)
+            }
+        }
+    }
+
+    #[inline]
+    fn visit_textual_contents<'ast: 'r, 'r>(
+        &mut self,
+        node: &'ast [TextualContent],
+        __ast_path: &mut AstNodePath<'r>,
+    ) {
+        match self {
+            swc_visit::Either::Left(visitor) => {
+                VisitAstPath::visit_textual_contents(visitor, node, __ast_path)
+            }
+            swc_visit::Either::Right(visitor) => {
+                VisitAstPath::visit_textual_contents(visitor, node, __ast_path)
             }
         }
     }
@@ -2922,6 +3235,18 @@ impl<V> VisitAstPath for ::swc_visit::Optional<V>
 where
     V: VisitAstPath,
 {
+    #[inline]
+    fn visit_atom<'ast: 'r, 'r>(
+        &mut self,
+        node: &'ast swc_atoms::Atom,
+        __ast_path: &mut AstNodePath<'r>,
+    ) {
+        if self.enabled {
+            <V as VisitAstPath>::visit_atom(&mut self.visitor, node, __ast_path)
+        } else {
+        }
+    }
+
     #[inline]
     fn visit_atx_heading<'ast: 'r, 'r>(
         &mut self,
@@ -2959,14 +3284,6 @@ where
     }
 
     #[inline]
-    fn visit_block<'ast: 'r, 'r>(&mut self, node: &'ast Block, __ast_path: &mut AstNodePath<'r>) {
-        if self.enabled {
-            <V as VisitAstPath>::visit_block(&mut self.visitor, node, __ast_path)
-        } else {
-        }
-    }
-
-    #[inline]
     fn visit_block_quote<'ast: 'r, 'r>(
         &mut self,
         node: &'ast BlockQuote,
@@ -2979,13 +3296,21 @@ where
     }
 
     #[inline]
-    fn visit_blocks<'ast: 'r, 'r>(
+    fn visit_child<'ast: 'r, 'r>(&mut self, node: &'ast Child, __ast_path: &mut AstNodePath<'r>) {
+        if self.enabled {
+            <V as VisitAstPath>::visit_child(&mut self.visitor, node, __ast_path)
+        } else {
+        }
+    }
+
+    #[inline]
+    fn visit_childs<'ast: 'r, 'r>(
         &mut self,
-        node: &'ast [Block],
+        node: &'ast [Child],
         __ast_path: &mut AstNodePath<'r>,
     ) {
         if self.enabled {
-            <V as VisitAstPath>::visit_blocks(&mut self.visitor, node, __ast_path)
+            <V as VisitAstPath>::visit_childs(&mut self.visitor, node, __ast_path)
         } else {
         }
     }
@@ -3027,17 +3352,13 @@ where
     }
 
     #[inline]
-    fn visit_emphasis_and_strong_emphasis<'ast: 'r, 'r>(
+    fn visit_emphasis<'ast: 'r, 'r>(
         &mut self,
-        node: &'ast EmphasisAndStrongEmphasis,
+        node: &'ast Emphasis,
         __ast_path: &mut AstNodePath<'r>,
     ) {
         if self.enabled {
-            <V as VisitAstPath>::visit_emphasis_and_strong_emphasis(
-                &mut self.visitor,
-                node,
-                __ast_path,
-            )
+            <V as VisitAstPath>::visit_emphasis(&mut self.visitor, node, __ast_path)
         } else {
         }
     }
@@ -3111,18 +3432,6 @@ where
     }
 
     #[inline]
-    fn visit_inline_blocks<'ast: 'r, 'r>(
-        &mut self,
-        node: &'ast [InlineBlock],
-        __ast_path: &mut AstNodePath<'r>,
-    ) {
-        if self.enabled {
-            <V as VisitAstPath>::visit_inline_blocks(&mut self.visitor, node, __ast_path)
-        } else {
-        }
-    }
-
-    #[inline]
     fn visit_leaf_block<'ast: 'r, 'r>(
         &mut self,
         node: &'ast LeafBlock,
@@ -3174,6 +3483,18 @@ where
     ) {
         if self.enabled {
             <V as VisitAstPath>::visit_list_item(&mut self.visitor, node, __ast_path)
+        } else {
+        }
+    }
+
+    #[inline]
+    fn visit_opt_atom<'ast: 'r, 'r>(
+        &mut self,
+        node: &'ast Option<swc_atoms::Atom>,
+        __ast_path: &mut AstNodePath<'r>,
+    ) {
+        if self.enabled {
+            <V as VisitAstPath>::visit_opt_atom(&mut self.visitor, node, __ast_path)
         } else {
         }
     }
@@ -3247,6 +3568,18 @@ where
     }
 
     #[inline]
+    fn visit_strong_emphasis<'ast: 'r, 'r>(
+        &mut self,
+        node: &'ast StrongEmphasis,
+        __ast_path: &mut AstNodePath<'r>,
+    ) {
+        if self.enabled {
+            <V as VisitAstPath>::visit_strong_emphasis(&mut self.visitor, node, __ast_path)
+        } else {
+        }
+    }
+
+    #[inline]
     fn visit_textual_content<'ast: 'r, 'r>(
         &mut self,
         node: &'ast TextualContent,
@@ -3254,6 +3587,18 @@ where
     ) {
         if self.enabled {
             <V as VisitAstPath>::visit_textual_content(&mut self.visitor, node, __ast_path)
+        } else {
+        }
+    }
+
+    #[inline]
+    fn visit_textual_contents<'ast: 'r, 'r>(
+        &mut self,
+        node: &'ast [TextualContent],
+        __ast_path: &mut AstNodePath<'r>,
+    ) {
+        if self.enabled {
+            <V as VisitAstPath>::visit_textual_contents(&mut self.visitor, node, __ast_path)
         } else {
         }
     }
@@ -3326,7 +3671,7 @@ impl<V: ?Sized + VisitAstPath> VisitWithAstPath<V> for ATXHeading {
                         self,
                         self::fields::ATXHeadingField::Children(usize::MAX),
                     ));
-                    <Vec<InlineBlock> as VisitWithAstPath<V>>::visit_with_ast_path(
+                    <Vec<Child> as VisitWithAstPath<V>>::visit_with_ast_path(
                         children,
                         visitor,
                         &mut *__ast_path,
@@ -3406,60 +3751,6 @@ impl<V: ?Sized + VisitAstPath> VisitWithAstPath<V> for BlankLine {
 }
 #[cfg(any(docsrs, feature = "path"))]
 #[cfg_attr(docsrs, doc(cfg(feature = "path")))]
-impl<V: ?Sized + VisitAstPath> VisitWithAstPath<V> for Block {
-    #[doc = "Calls [VisitAstPath`::visit_block`] with `self`."]
-    fn visit_with_ast_path<'ast: 'r, 'r>(
-        &'ast self,
-        visitor: &mut V,
-        __ast_path: &mut AstNodePath<'r>,
-    ) {
-        <V as VisitAstPath>::visit_block(visitor, self, __ast_path)
-    }
-
-    fn visit_children_with_ast_path<'ast: 'r, 'r>(
-        &'ast self,
-        visitor: &mut V,
-        __ast_path: &mut AstNodePath<'r>,
-    ) {
-        match self {
-            Block::Leaf { 0: _field_0 } => {
-                let mut __ast_path = __ast_path.with_guard(AstParentNodeRef::Block(
-                    self,
-                    self::fields::BlockField::Leaf,
-                ));
-                <LeafBlock as VisitWithAstPath<V>>::visit_with_ast_path(
-                    _field_0,
-                    visitor,
-                    &mut *__ast_path,
-                );
-            }
-            Block::Container { 0: _field_0 } => {
-                let mut __ast_path = __ast_path.with_guard(AstParentNodeRef::Block(
-                    self,
-                    self::fields::BlockField::Container,
-                ));
-                <ContainerBlock as VisitWithAstPath<V>>::visit_with_ast_path(
-                    _field_0,
-                    visitor,
-                    &mut *__ast_path,
-                );
-            }
-            Block::Inline { 0: _field_0 } => {
-                let mut __ast_path = __ast_path.with_guard(AstParentNodeRef::Block(
-                    self,
-                    self::fields::BlockField::Inline,
-                ));
-                <InlineBlock as VisitWithAstPath<V>>::visit_with_ast_path(
-                    _field_0,
-                    visitor,
-                    &mut *__ast_path,
-                );
-            }
-        }
-    }
-}
-#[cfg(any(docsrs, feature = "path"))]
-#[cfg_attr(docsrs, doc(cfg(feature = "path")))]
 impl<V: ?Sized + VisitAstPath> VisitWithAstPath<V> for BlockQuote {
     #[doc = "Calls [VisitAstPath`::visit_block_quote`] with `self`."]
     fn visit_with_ast_path<'ast: 'r, 'r>(
@@ -3476,7 +3767,7 @@ impl<V: ?Sized + VisitAstPath> VisitWithAstPath<V> for BlockQuote {
         __ast_path: &mut AstNodePath<'r>,
     ) {
         match self {
-            BlockQuote { span } => {
+            BlockQuote { span, children } => {
                 {
                     let mut __ast_path = __ast_path.with_guard(AstParentNodeRef::BlockQuote(
                         self,
@@ -3488,6 +3779,71 @@ impl<V: ?Sized + VisitAstPath> VisitWithAstPath<V> for BlockQuote {
                         &mut *__ast_path,
                     )
                 };
+                {
+                    let mut __ast_path = __ast_path.with_guard(AstParentNodeRef::BlockQuote(
+                        self,
+                        self::fields::BlockQuoteField::Children(usize::MAX),
+                    ));
+                    <Vec<Child> as VisitWithAstPath<V>>::visit_with_ast_path(
+                        children,
+                        visitor,
+                        &mut *__ast_path,
+                    )
+                };
+            }
+        }
+    }
+}
+#[cfg(any(docsrs, feature = "path"))]
+#[cfg_attr(docsrs, doc(cfg(feature = "path")))]
+impl<V: ?Sized + VisitAstPath> VisitWithAstPath<V> for Child {
+    #[doc = "Calls [VisitAstPath`::visit_child`] with `self`."]
+    fn visit_with_ast_path<'ast: 'r, 'r>(
+        &'ast self,
+        visitor: &mut V,
+        __ast_path: &mut AstNodePath<'r>,
+    ) {
+        <V as VisitAstPath>::visit_child(visitor, self, __ast_path)
+    }
+
+    fn visit_children_with_ast_path<'ast: 'r, 'r>(
+        &'ast self,
+        visitor: &mut V,
+        __ast_path: &mut AstNodePath<'r>,
+    ) {
+        match self {
+            Child::Leaf { 0: _field_0 } => {
+                let mut __ast_path = __ast_path.with_guard(AstParentNodeRef::Child(
+                    self,
+                    self::fields::ChildField::Leaf,
+                ));
+                <LeafBlock as VisitWithAstPath<V>>::visit_with_ast_path(
+                    _field_0,
+                    visitor,
+                    &mut *__ast_path,
+                );
+            }
+            Child::Container { 0: _field_0 } => {
+                let mut __ast_path = __ast_path.with_guard(AstParentNodeRef::Child(
+                    self,
+                    self::fields::ChildField::Container,
+                ));
+                <ContainerBlock as VisitWithAstPath<V>>::visit_with_ast_path(
+                    _field_0,
+                    visitor,
+                    &mut *__ast_path,
+                );
+            }
+            Child::Inline { 0: _field_0 } => {
+                let mut __ast_path = __ast_path.with_guard(AstParentNodeRef::Child(
+                    self,
+                    self::fields::ChildField::Inline,
+                ));
+                <InlineBlock as VisitWithAstPath<V>>::visit_with_ast_path(
+                    _field_0,
+                    visitor,
+                    &mut *__ast_path,
+                );
             }
         }
     }
@@ -3620,7 +3976,7 @@ impl<V: ?Sized + VisitAstPath> VisitWithAstPath<V> for Document {
                         self,
                         self::fields::DocumentField::Children(usize::MAX),
                     ));
-                    <Vec<Block> as VisitWithAstPath<V>>::visit_with_ast_path(
+                    <Vec<Child> as VisitWithAstPath<V>>::visit_with_ast_path(
                         children,
                         visitor,
                         &mut *__ast_path,
@@ -3632,14 +3988,14 @@ impl<V: ?Sized + VisitAstPath> VisitWithAstPath<V> for Document {
 }
 #[cfg(any(docsrs, feature = "path"))]
 #[cfg_attr(docsrs, doc(cfg(feature = "path")))]
-impl<V: ?Sized + VisitAstPath> VisitWithAstPath<V> for EmphasisAndStrongEmphasis {
-    #[doc = "Calls [VisitAstPath`::visit_emphasis_and_strong_emphasis`] with `self`."]
+impl<V: ?Sized + VisitAstPath> VisitWithAstPath<V> for Emphasis {
+    #[doc = "Calls [VisitAstPath`::visit_emphasis`] with `self`."]
     fn visit_with_ast_path<'ast: 'r, 'r>(
         &'ast self,
         visitor: &mut V,
         __ast_path: &mut AstNodePath<'r>,
     ) {
-        <V as VisitAstPath>::visit_emphasis_and_strong_emphasis(visitor, self, __ast_path)
+        <V as VisitAstPath>::visit_emphasis(visitor, self, __ast_path)
     }
 
     fn visit_children_with_ast_path<'ast: 'r, 'r>(
@@ -3648,15 +4004,25 @@ impl<V: ?Sized + VisitAstPath> VisitWithAstPath<V> for EmphasisAndStrongEmphasis
         __ast_path: &mut AstNodePath<'r>,
     ) {
         match self {
-            EmphasisAndStrongEmphasis { span } => {
+            Emphasis { span, content } => {
                 {
-                    let mut __ast_path =
-                        __ast_path.with_guard(AstParentNodeRef::EmphasisAndStrongEmphasis(
-                            self,
-                            self::fields::EmphasisAndStrongEmphasisField::Span,
-                        ));
+                    let mut __ast_path = __ast_path.with_guard(AstParentNodeRef::Emphasis(
+                        self,
+                        self::fields::EmphasisField::Span,
+                    ));
                     <swc_common::Span as VisitWithAstPath<V>>::visit_with_ast_path(
                         span,
+                        visitor,
+                        &mut *__ast_path,
+                    )
+                };
+                {
+                    let mut __ast_path = __ast_path.with_guard(AstParentNodeRef::Emphasis(
+                        self,
+                        self::fields::EmphasisField::Content(usize::MAX),
+                    ));
+                    <Vec<TextualContent> as VisitWithAstPath<V>>::visit_with_ast_path(
+                        content,
                         visitor,
                         &mut *__ast_path,
                     )
@@ -3683,7 +4049,7 @@ impl<V: ?Sized + VisitAstPath> VisitWithAstPath<V> for FencedCodeBlock {
         __ast_path: &mut AstNodePath<'r>,
     ) {
         match self {
-            FencedCodeBlock { span } => {
+            FencedCodeBlock { span, info, code } => {
                 {
                     let mut __ast_path = __ast_path.with_guard(AstParentNodeRef::FencedCodeBlock(
                         self,
@@ -3691,6 +4057,28 @@ impl<V: ?Sized + VisitAstPath> VisitWithAstPath<V> for FencedCodeBlock {
                     ));
                     <swc_common::Span as VisitWithAstPath<V>>::visit_with_ast_path(
                         span,
+                        visitor,
+                        &mut *__ast_path,
+                    )
+                };
+                {
+                    let mut __ast_path = __ast_path.with_guard(AstParentNodeRef::FencedCodeBlock(
+                        self,
+                        self::fields::FencedCodeBlockField::Info,
+                    ));
+                    <Option<swc_atoms::Atom> as VisitWithAstPath<V>>::visit_with_ast_path(
+                        info,
+                        visitor,
+                        &mut *__ast_path,
+                    )
+                };
+                {
+                    let mut __ast_path = __ast_path.with_guard(AstParentNodeRef::FencedCodeBlock(
+                        self,
+                        self::fields::FencedCodeBlockField::Code,
+                    ));
+                    <swc_atoms::Atom as VisitWithAstPath<V>>::visit_with_ast_path(
+                        code,
                         visitor,
                         &mut *__ast_path,
                     )
@@ -3717,7 +4105,7 @@ impl<V: ?Sized + VisitAstPath> VisitWithAstPath<V> for HTMLBlock {
         __ast_path: &mut AstNodePath<'r>,
     ) {
         match self {
-            HTMLBlock { span } => {
+            HTMLBlock { span, html } => {
                 {
                     let mut __ast_path = __ast_path.with_guard(AstParentNodeRef::HTMLBlock(
                         self,
@@ -3725,6 +4113,17 @@ impl<V: ?Sized + VisitAstPath> VisitWithAstPath<V> for HTMLBlock {
                     ));
                     <swc_common::Span as VisitWithAstPath<V>>::visit_with_ast_path(
                         span,
+                        visitor,
+                        &mut *__ast_path,
+                    )
+                };
+                {
+                    let mut __ast_path = __ast_path.with_guard(AstParentNodeRef::HTMLBlock(
+                        self,
+                        self::fields::HTMLBlockField::Html,
+                    ));
+                    <swc_atoms::Atom as VisitWithAstPath<V>>::visit_with_ast_path(
+                        html,
                         visitor,
                         &mut *__ast_path,
                     )
@@ -3819,7 +4218,7 @@ impl<V: ?Sized + VisitAstPath> VisitWithAstPath<V> for IndentedCodeBlock {
         __ast_path: &mut AstNodePath<'r>,
     ) {
         match self {
-            IndentedCodeBlock { span } => {
+            IndentedCodeBlock { span, code } => {
                 {
                     let mut __ast_path =
                         __ast_path.with_guard(AstParentNodeRef::IndentedCodeBlock(
@@ -3828,6 +4227,18 @@ impl<V: ?Sized + VisitAstPath> VisitWithAstPath<V> for IndentedCodeBlock {
                         ));
                     <swc_common::Span as VisitWithAstPath<V>>::visit_with_ast_path(
                         span,
+                        visitor,
+                        &mut *__ast_path,
+                    )
+                };
+                {
+                    let mut __ast_path =
+                        __ast_path.with_guard(AstParentNodeRef::IndentedCodeBlock(
+                            self,
+                            self::fields::IndentedCodeBlockField::Code,
+                        ));
+                    <swc_atoms::Atom as VisitWithAstPath<V>>::visit_with_ast_path(
+                        code,
                         visitor,
                         &mut *__ast_path,
                     )
@@ -3865,12 +4276,23 @@ impl<V: ?Sized + VisitAstPath> VisitWithAstPath<V> for InlineBlock {
                     &mut *__ast_path,
                 );
             }
-            InlineBlock::EmphasisAndStrongEmphasis { 0: _field_0 } => {
+            InlineBlock::Emphasis { 0: _field_0 } => {
                 let mut __ast_path = __ast_path.with_guard(AstParentNodeRef::InlineBlock(
                     self,
-                    self::fields::InlineBlockField::EmphasisAndStrongEmphasis,
+                    self::fields::InlineBlockField::Emphasis,
                 ));
-                <EmphasisAndStrongEmphasis as VisitWithAstPath<V>>::visit_with_ast_path(
+                <Emphasis as VisitWithAstPath<V>>::visit_with_ast_path(
+                    _field_0,
+                    visitor,
+                    &mut *__ast_path,
+                );
+            }
+            InlineBlock::StrongEmphasis { 0: _field_0 } => {
+                let mut __ast_path = __ast_path.with_guard(AstParentNodeRef::InlineBlock(
+                    self,
+                    self::fields::InlineBlockField::StrongEmphasis,
+                ));
+                <StrongEmphasis as VisitWithAstPath<V>>::visit_with_ast_path(
                     _field_0,
                     visitor,
                     &mut *__ast_path,
@@ -4126,7 +4548,12 @@ impl<V: ?Sized + VisitAstPath> VisitWithAstPath<V> for LinkReferenceDefinition {
         __ast_path: &mut AstNodePath<'r>,
     ) {
         match self {
-            LinkReferenceDefinition { span } => {
+            LinkReferenceDefinition {
+                span,
+                label,
+                destination,
+                title,
+            } => {
                 {
                     let mut __ast_path =
                         __ast_path.with_guard(AstParentNodeRef::LinkReferenceDefinition(
@@ -4135,6 +4562,42 @@ impl<V: ?Sized + VisitAstPath> VisitWithAstPath<V> for LinkReferenceDefinition {
                         ));
                     <swc_common::Span as VisitWithAstPath<V>>::visit_with_ast_path(
                         span,
+                        visitor,
+                        &mut *__ast_path,
+                    )
+                };
+                {
+                    let mut __ast_path =
+                        __ast_path.with_guard(AstParentNodeRef::LinkReferenceDefinition(
+                            self,
+                            self::fields::LinkReferenceDefinitionField::Label,
+                        ));
+                    <swc_atoms::Atom as VisitWithAstPath<V>>::visit_with_ast_path(
+                        label,
+                        visitor,
+                        &mut *__ast_path,
+                    )
+                };
+                {
+                    let mut __ast_path =
+                        __ast_path.with_guard(AstParentNodeRef::LinkReferenceDefinition(
+                            self,
+                            self::fields::LinkReferenceDefinitionField::Destination,
+                        ));
+                    <swc_atoms::Atom as VisitWithAstPath<V>>::visit_with_ast_path(
+                        destination,
+                        visitor,
+                        &mut *__ast_path,
+                    )
+                };
+                {
+                    let mut __ast_path =
+                        __ast_path.with_guard(AstParentNodeRef::LinkReferenceDefinition(
+                            self,
+                            self::fields::LinkReferenceDefinitionField::Title,
+                        ));
+                    <Option<swc_atoms::Atom> as VisitWithAstPath<V>>::visit_with_ast_path(
+                        title,
                         visitor,
                         &mut *__ast_path,
                     )
@@ -4244,7 +4707,7 @@ impl<V: ?Sized + VisitAstPath> VisitWithAstPath<V> for Paragraph {
                         self,
                         self::fields::ParagraphField::Children(usize::MAX),
                     ));
-                    <Vec<InlineBlock> as VisitWithAstPath<V>>::visit_with_ast_path(
+                    <Vec<Child> as VisitWithAstPath<V>>::visit_with_ast_path(
                         children,
                         visitor,
                         &mut *__ast_path,
@@ -4327,7 +4790,7 @@ impl<V: ?Sized + VisitAstPath> VisitWithAstPath<V> for SetextHeading {
                         self,
                         self::fields::SetextHeadingField::Children(usize::MAX),
                     ));
-                    <Vec<InlineBlock> as VisitWithAstPath<V>>::visit_with_ast_path(
+                    <Vec<Child> as VisitWithAstPath<V>>::visit_with_ast_path(
                         children,
                         visitor,
                         &mut *__ast_path,
@@ -4363,6 +4826,51 @@ impl<V: ?Sized + VisitAstPath> VisitWithAstPath<V> for SoftLineBreak {
                     ));
                     <swc_common::Span as VisitWithAstPath<V>>::visit_with_ast_path(
                         span,
+                        visitor,
+                        &mut *__ast_path,
+                    )
+                };
+            }
+        }
+    }
+}
+#[cfg(any(docsrs, feature = "path"))]
+#[cfg_attr(docsrs, doc(cfg(feature = "path")))]
+impl<V: ?Sized + VisitAstPath> VisitWithAstPath<V> for StrongEmphasis {
+    #[doc = "Calls [VisitAstPath`::visit_strong_emphasis`] with `self`."]
+    fn visit_with_ast_path<'ast: 'r, 'r>(
+        &'ast self,
+        visitor: &mut V,
+        __ast_path: &mut AstNodePath<'r>,
+    ) {
+        <V as VisitAstPath>::visit_strong_emphasis(visitor, self, __ast_path)
+    }
+
+    fn visit_children_with_ast_path<'ast: 'r, 'r>(
+        &'ast self,
+        visitor: &mut V,
+        __ast_path: &mut AstNodePath<'r>,
+    ) {
+        match self {
+            StrongEmphasis { span, content } => {
+                {
+                    let mut __ast_path = __ast_path.with_guard(AstParentNodeRef::StrongEmphasis(
+                        self,
+                        self::fields::StrongEmphasisField::Span,
+                    ));
+                    <swc_common::Span as VisitWithAstPath<V>>::visit_with_ast_path(
+                        span,
+                        visitor,
+                        &mut *__ast_path,
+                    )
+                };
+                {
+                    let mut __ast_path = __ast_path.with_guard(AstParentNodeRef::StrongEmphasis(
+                        self,
+                        self::fields::StrongEmphasisField::Content(usize::MAX),
+                    ));
+                    <Vec<TextualContent> as VisitWithAstPath<V>>::visit_with_ast_path(
+                        content,
                         visitor,
                         &mut *__ast_path,
                     )
@@ -4452,15 +4960,37 @@ impl<V: ?Sized + VisitAstPath> VisitWithAstPath<V> for ThematicBreak {
 }
 #[cfg(any(docsrs, feature = "path"))]
 #[cfg_attr(docsrs, doc(cfg(feature = "path")))]
-impl<V: ?Sized + VisitAstPath> VisitWithAstPath<V> for [Block] {
-    #[doc = "Calls [VisitAstPath`::visit_blocks`] with `self`. (Extra impl)"]
+impl<V: ?Sized + VisitAstPath> VisitWithAstPath<V> for swc_atoms::Atom {
+    #[doc = "Calls [VisitAstPath`::visit_atom`] with `self`. (Extra impl)"]
     #[inline]
     fn visit_with_ast_path<'ast: 'r, 'r>(
         &'ast self,
         visitor: &mut V,
         __ast_path: &mut AstNodePath<'r>,
     ) {
-        <V as VisitAstPath>::visit_blocks(visitor, self, __ast_path)
+        <V as VisitAstPath>::visit_atom(visitor, self, __ast_path)
+    }
+
+    #[inline]
+    fn visit_children_with_ast_path<'ast: 'r, 'r>(
+        &'ast self,
+        visitor: &mut V,
+        __ast_path: &mut AstNodePath<'r>,
+    ) {
+        {}
+    }
+}
+#[cfg(any(docsrs, feature = "path"))]
+#[cfg_attr(docsrs, doc(cfg(feature = "path")))]
+impl<V: ?Sized + VisitAstPath> VisitWithAstPath<V> for [Child] {
+    #[doc = "Calls [VisitAstPath`::visit_childs`] with `self`. (Extra impl)"]
+    #[inline]
+    fn visit_with_ast_path<'ast: 'r, 'r>(
+        &'ast self,
+        visitor: &mut V,
+        __ast_path: &mut AstNodePath<'r>,
+    ) {
+        <V as VisitAstPath>::visit_childs(visitor, self, __ast_path)
     }
 
     #[inline]
@@ -4471,21 +5001,21 @@ impl<V: ?Sized + VisitAstPath> VisitWithAstPath<V> for [Block] {
     ) {
         self.iter().enumerate().for_each(|(__idx, item)| {
             let mut __ast_path = __ast_path.with_index_guard(__idx);
-            <Block as VisitWithAstPath<V>>::visit_with_ast_path(item, visitor, &mut *__ast_path)
+            <Child as VisitWithAstPath<V>>::visit_with_ast_path(item, visitor, &mut *__ast_path)
         })
     }
 }
 #[cfg(any(docsrs, feature = "path"))]
 #[cfg_attr(docsrs, doc(cfg(feature = "path")))]
-impl<V: ?Sized + VisitAstPath> VisitWithAstPath<V> for [InlineBlock] {
-    #[doc = "Calls [VisitAstPath`::visit_inline_blocks`] with `self`. (Extra impl)"]
+impl<V: ?Sized + VisitAstPath> VisitWithAstPath<V> for Option<swc_atoms::Atom> {
+    #[doc = "Calls [VisitAstPath`::visit_opt_atom`] with `self`. (Extra impl)"]
     #[inline]
     fn visit_with_ast_path<'ast: 'r, 'r>(
         &'ast self,
         visitor: &mut V,
         __ast_path: &mut AstNodePath<'r>,
     ) {
-        <V as VisitAstPath>::visit_inline_blocks(visitor, self, __ast_path)
+        <V as VisitAstPath>::visit_opt_atom(visitor, self, __ast_path)
     }
 
     #[inline]
@@ -4494,14 +5024,12 @@ impl<V: ?Sized + VisitAstPath> VisitWithAstPath<V> for [InlineBlock] {
         visitor: &mut V,
         __ast_path: &mut AstNodePath<'r>,
     ) {
-        self.iter().enumerate().for_each(|(__idx, item)| {
-            let mut __ast_path = __ast_path.with_index_guard(__idx);
-            <InlineBlock as VisitWithAstPath<V>>::visit_with_ast_path(
-                item,
-                visitor,
-                &mut *__ast_path,
-            )
-        })
+        match self {
+            Some(inner) => <swc_atoms::Atom as VisitWithAstPath<V>>::visit_with_ast_path(
+                inner, visitor, __ast_path,
+            ),
+            None => {}
+        }
     }
 }
 #[cfg(any(docsrs, feature = "path"))]
@@ -4546,6 +5074,35 @@ impl<V: ?Sized + VisitAstPath> VisitWithAstPath<V> for String {
         __ast_path: &mut AstNodePath<'r>,
     ) {
         {}
+    }
+}
+#[cfg(any(docsrs, feature = "path"))]
+#[cfg_attr(docsrs, doc(cfg(feature = "path")))]
+impl<V: ?Sized + VisitAstPath> VisitWithAstPath<V> for [TextualContent] {
+    #[doc = "Calls [VisitAstPath`::visit_textual_contents`] with `self`. (Extra impl)"]
+    #[inline]
+    fn visit_with_ast_path<'ast: 'r, 'r>(
+        &'ast self,
+        visitor: &mut V,
+        __ast_path: &mut AstNodePath<'r>,
+    ) {
+        <V as VisitAstPath>::visit_textual_contents(visitor, self, __ast_path)
+    }
+
+    #[inline]
+    fn visit_children_with_ast_path<'ast: 'r, 'r>(
+        &'ast self,
+        visitor: &mut V,
+        __ast_path: &mut AstNodePath<'r>,
+    ) {
+        self.iter().enumerate().for_each(|(__idx, item)| {
+            let mut __ast_path = __ast_path.with_index_guard(__idx);
+            <TextualContent as VisitWithAstPath<V>>::visit_with_ast_path(
+                item,
+                visitor,
+                &mut *__ast_path,
+            )
+        })
     }
 }
 #[cfg(any(docsrs, feature = "path"))]
@@ -4606,6 +5163,13 @@ where
 }
 #[doc = r" A visitor trait for traversing the AST."]
 pub trait VisitMut {
+    #[doc = "Visit a node of type `swc_atoms :: Atom`.\n\nBy default, this method calls \
+             [`swc_atoms :: Atom::visit_mut_children_with`]. If you want to recurse, you need to \
+             call it manually."]
+    #[inline]
+    fn visit_mut_atom(&mut self, node: &mut swc_atoms::Atom) {
+        <swc_atoms::Atom as VisitMutWith<Self>>::visit_mut_children_with(node, self)
+    }
     #[doc = "Visit a node of type `ATXHeading`.\n\nBy default, this method calls \
              [`ATXHeading::visit_mut_children_with`]. If you want to recurse, you need to call it \
              manually."]
@@ -4627,13 +5191,6 @@ pub trait VisitMut {
     fn visit_mut_blank_line(&mut self, node: &mut BlankLine) {
         <BlankLine as VisitMutWith<Self>>::visit_mut_children_with(node, self)
     }
-    #[doc = "Visit a node of type `Block`.\n\nBy default, this method calls \
-             [`Block::visit_mut_children_with`]. If you want to recurse, you need to call it \
-             manually."]
-    #[inline]
-    fn visit_mut_block(&mut self, node: &mut Block) {
-        <Block as VisitMutWith<Self>>::visit_mut_children_with(node, self)
-    }
     #[doc = "Visit a node of type `BlockQuote`.\n\nBy default, this method calls \
              [`BlockQuote::visit_mut_children_with`]. If you want to recurse, you need to call it \
              manually."]
@@ -4641,11 +5198,18 @@ pub trait VisitMut {
     fn visit_mut_block_quote(&mut self, node: &mut BlockQuote) {
         <BlockQuote as VisitMutWith<Self>>::visit_mut_children_with(node, self)
     }
-    #[doc = "Visit a node of type `Vec < Block >`.\n\nBy default, this method calls [`Vec < Block \
+    #[doc = "Visit a node of type `Child`.\n\nBy default, this method calls \
+             [`Child::visit_mut_children_with`]. If you want to recurse, you need to call it \
+             manually."]
+    #[inline]
+    fn visit_mut_child(&mut self, node: &mut Child) {
+        <Child as VisitMutWith<Self>>::visit_mut_children_with(node, self)
+    }
+    #[doc = "Visit a node of type `Vec < Child >`.\n\nBy default, this method calls [`Vec < Child \
              >::visit_mut_children_with`]. If you want to recurse, you need to call it manually."]
     #[inline]
-    fn visit_mut_blocks(&mut self, node: &mut Vec<Block>) {
-        <Vec<Block> as VisitMutWith<Self>>::visit_mut_children_with(node, self)
+    fn visit_mut_childs(&mut self, node: &mut Vec<Child>) {
+        <Vec<Child> as VisitMutWith<Self>>::visit_mut_children_with(node, self)
     }
     #[doc = "Visit a node of type `CodeSpan`.\n\nBy default, this method calls \
              [`CodeSpan::visit_mut_children_with`]. If you want to recurse, you need to call it \
@@ -4668,12 +5232,12 @@ pub trait VisitMut {
     fn visit_mut_document(&mut self, node: &mut Document) {
         <Document as VisitMutWith<Self>>::visit_mut_children_with(node, self)
     }
-    #[doc = "Visit a node of type `EmphasisAndStrongEmphasis`.\n\nBy default, this method calls \
-             [`EmphasisAndStrongEmphasis::visit_mut_children_with`]. If you want to recurse, you \
-             need to call it manually."]
+    #[doc = "Visit a node of type `Emphasis`.\n\nBy default, this method calls \
+             [`Emphasis::visit_mut_children_with`]. If you want to recurse, you need to call it \
+             manually."]
     #[inline]
-    fn visit_mut_emphasis_and_strong_emphasis(&mut self, node: &mut EmphasisAndStrongEmphasis) {
-        <EmphasisAndStrongEmphasis as VisitMutWith<Self>>::visit_mut_children_with(node, self)
+    fn visit_mut_emphasis(&mut self, node: &mut Emphasis) {
+        <Emphasis as VisitMutWith<Self>>::visit_mut_children_with(node, self)
     }
     #[doc = "Visit a node of type `FencedCodeBlock`.\n\nBy default, this method calls \
              [`FencedCodeBlock::visit_mut_children_with`]. If you want to recurse, you need to \
@@ -4717,13 +5281,6 @@ pub trait VisitMut {
     fn visit_mut_inline_block(&mut self, node: &mut InlineBlock) {
         <InlineBlock as VisitMutWith<Self>>::visit_mut_children_with(node, self)
     }
-    #[doc = "Visit a node of type `Vec < InlineBlock >`.\n\nBy default, this method calls [`Vec < \
-             InlineBlock >::visit_mut_children_with`]. If you want to recurse, you need to call it \
-             manually."]
-    #[inline]
-    fn visit_mut_inline_blocks(&mut self, node: &mut Vec<InlineBlock>) {
-        <Vec<InlineBlock> as VisitMutWith<Self>>::visit_mut_children_with(node, self)
-    }
     #[doc = "Visit a node of type `LeafBlock`.\n\nBy default, this method calls \
              [`LeafBlock::visit_mut_children_with`]. If you want to recurse, you need to call it \
              manually."]
@@ -4758,6 +5315,13 @@ pub trait VisitMut {
     #[inline]
     fn visit_mut_list_item(&mut self, node: &mut ListItem) {
         <ListItem as VisitMutWith<Self>>::visit_mut_children_with(node, self)
+    }
+    #[doc = "Visit a node of type `Option < swc_atoms :: Atom >`.\n\nBy default, this method calls \
+             [`Option < swc_atoms :: Atom >::visit_mut_children_with`]. If you want to recurse, \
+             you need to call it manually."]
+    #[inline]
+    fn visit_mut_opt_atom(&mut self, node: &mut Option<swc_atoms::Atom>) {
+        <Option<swc_atoms::Atom> as VisitMutWith<Self>>::visit_mut_children_with(node, self)
     }
     #[doc = "Visit a node of type `Paragraph`.\n\nBy default, this method calls \
              [`Paragraph::visit_mut_children_with`]. If you want to recurse, you need to call it \
@@ -4801,12 +5365,26 @@ pub trait VisitMut {
     fn visit_mut_string(&mut self, node: &mut String) {
         <String as VisitMutWith<Self>>::visit_mut_children_with(node, self)
     }
+    #[doc = "Visit a node of type `StrongEmphasis`.\n\nBy default, this method calls \
+             [`StrongEmphasis::visit_mut_children_with`]. If you want to recurse, you need to call \
+             it manually."]
+    #[inline]
+    fn visit_mut_strong_emphasis(&mut self, node: &mut StrongEmphasis) {
+        <StrongEmphasis as VisitMutWith<Self>>::visit_mut_children_with(node, self)
+    }
     #[doc = "Visit a node of type `TextualContent`.\n\nBy default, this method calls \
              [`TextualContent::visit_mut_children_with`]. If you want to recurse, you need to call \
              it manually."]
     #[inline]
     fn visit_mut_textual_content(&mut self, node: &mut TextualContent) {
         <TextualContent as VisitMutWith<Self>>::visit_mut_children_with(node, self)
+    }
+    #[doc = "Visit a node of type `Vec < TextualContent >`.\n\nBy default, this method calls [`Vec \
+             < TextualContent >::visit_mut_children_with`]. If you want to recurse, you need to \
+             call it manually."]
+    #[inline]
+    fn visit_mut_textual_contents(&mut self, node: &mut Vec<TextualContent>) {
+        <Vec<TextualContent> as VisitMutWith<Self>>::visit_mut_children_with(node, self)
     }
     #[doc = "Visit a node of type `ThematicBreak`.\n\nBy default, this method calls \
              [`ThematicBreak::visit_mut_children_with`]. If you want to recurse, you need to call \
@@ -4821,6 +5399,11 @@ where
     V: ?Sized + VisitMut,
 {
     #[inline]
+    fn visit_mut_atom(&mut self, node: &mut swc_atoms::Atom) {
+        <V as VisitMut>::visit_mut_atom(&mut **self, node)
+    }
+
+    #[inline]
     fn visit_mut_atx_heading(&mut self, node: &mut ATXHeading) {
         <V as VisitMut>::visit_mut_atx_heading(&mut **self, node)
     }
@@ -4836,18 +5419,18 @@ where
     }
 
     #[inline]
-    fn visit_mut_block(&mut self, node: &mut Block) {
-        <V as VisitMut>::visit_mut_block(&mut **self, node)
-    }
-
-    #[inline]
     fn visit_mut_block_quote(&mut self, node: &mut BlockQuote) {
         <V as VisitMut>::visit_mut_block_quote(&mut **self, node)
     }
 
     #[inline]
-    fn visit_mut_blocks(&mut self, node: &mut Vec<Block>) {
-        <V as VisitMut>::visit_mut_blocks(&mut **self, node)
+    fn visit_mut_child(&mut self, node: &mut Child) {
+        <V as VisitMut>::visit_mut_child(&mut **self, node)
+    }
+
+    #[inline]
+    fn visit_mut_childs(&mut self, node: &mut Vec<Child>) {
+        <V as VisitMut>::visit_mut_childs(&mut **self, node)
     }
 
     #[inline]
@@ -4866,8 +5449,8 @@ where
     }
 
     #[inline]
-    fn visit_mut_emphasis_and_strong_emphasis(&mut self, node: &mut EmphasisAndStrongEmphasis) {
-        <V as VisitMut>::visit_mut_emphasis_and_strong_emphasis(&mut **self, node)
+    fn visit_mut_emphasis(&mut self, node: &mut Emphasis) {
+        <V as VisitMut>::visit_mut_emphasis(&mut **self, node)
     }
 
     #[inline]
@@ -4901,11 +5484,6 @@ where
     }
 
     #[inline]
-    fn visit_mut_inline_blocks(&mut self, node: &mut Vec<InlineBlock>) {
-        <V as VisitMut>::visit_mut_inline_blocks(&mut **self, node)
-    }
-
-    #[inline]
     fn visit_mut_leaf_block(&mut self, node: &mut LeafBlock) {
         <V as VisitMut>::visit_mut_leaf_block(&mut **self, node)
     }
@@ -4928,6 +5506,11 @@ where
     #[inline]
     fn visit_mut_list_item(&mut self, node: &mut ListItem) {
         <V as VisitMut>::visit_mut_list_item(&mut **self, node)
+    }
+
+    #[inline]
+    fn visit_mut_opt_atom(&mut self, node: &mut Option<swc_atoms::Atom>) {
+        <V as VisitMut>::visit_mut_opt_atom(&mut **self, node)
     }
 
     #[inline]
@@ -4961,8 +5544,18 @@ where
     }
 
     #[inline]
+    fn visit_mut_strong_emphasis(&mut self, node: &mut StrongEmphasis) {
+        <V as VisitMut>::visit_mut_strong_emphasis(&mut **self, node)
+    }
+
+    #[inline]
     fn visit_mut_textual_content(&mut self, node: &mut TextualContent) {
         <V as VisitMut>::visit_mut_textual_content(&mut **self, node)
+    }
+
+    #[inline]
+    fn visit_mut_textual_contents(&mut self, node: &mut Vec<TextualContent>) {
+        <V as VisitMut>::visit_mut_textual_contents(&mut **self, node)
     }
 
     #[inline]
@@ -4975,6 +5568,11 @@ where
     V: ?Sized + VisitMut,
 {
     #[inline]
+    fn visit_mut_atom(&mut self, node: &mut swc_atoms::Atom) {
+        <V as VisitMut>::visit_mut_atom(&mut **self, node)
+    }
+
+    #[inline]
     fn visit_mut_atx_heading(&mut self, node: &mut ATXHeading) {
         <V as VisitMut>::visit_mut_atx_heading(&mut **self, node)
     }
@@ -4990,18 +5588,18 @@ where
     }
 
     #[inline]
-    fn visit_mut_block(&mut self, node: &mut Block) {
-        <V as VisitMut>::visit_mut_block(&mut **self, node)
-    }
-
-    #[inline]
     fn visit_mut_block_quote(&mut self, node: &mut BlockQuote) {
         <V as VisitMut>::visit_mut_block_quote(&mut **self, node)
     }
 
     #[inline]
-    fn visit_mut_blocks(&mut self, node: &mut Vec<Block>) {
-        <V as VisitMut>::visit_mut_blocks(&mut **self, node)
+    fn visit_mut_child(&mut self, node: &mut Child) {
+        <V as VisitMut>::visit_mut_child(&mut **self, node)
+    }
+
+    #[inline]
+    fn visit_mut_childs(&mut self, node: &mut Vec<Child>) {
+        <V as VisitMut>::visit_mut_childs(&mut **self, node)
     }
 
     #[inline]
@@ -5020,8 +5618,8 @@ where
     }
 
     #[inline]
-    fn visit_mut_emphasis_and_strong_emphasis(&mut self, node: &mut EmphasisAndStrongEmphasis) {
-        <V as VisitMut>::visit_mut_emphasis_and_strong_emphasis(&mut **self, node)
+    fn visit_mut_emphasis(&mut self, node: &mut Emphasis) {
+        <V as VisitMut>::visit_mut_emphasis(&mut **self, node)
     }
 
     #[inline]
@@ -5055,11 +5653,6 @@ where
     }
 
     #[inline]
-    fn visit_mut_inline_blocks(&mut self, node: &mut Vec<InlineBlock>) {
-        <V as VisitMut>::visit_mut_inline_blocks(&mut **self, node)
-    }
-
-    #[inline]
     fn visit_mut_leaf_block(&mut self, node: &mut LeafBlock) {
         <V as VisitMut>::visit_mut_leaf_block(&mut **self, node)
     }
@@ -5082,6 +5675,11 @@ where
     #[inline]
     fn visit_mut_list_item(&mut self, node: &mut ListItem) {
         <V as VisitMut>::visit_mut_list_item(&mut **self, node)
+    }
+
+    #[inline]
+    fn visit_mut_opt_atom(&mut self, node: &mut Option<swc_atoms::Atom>) {
+        <V as VisitMut>::visit_mut_opt_atom(&mut **self, node)
     }
 
     #[inline]
@@ -5115,8 +5713,18 @@ where
     }
 
     #[inline]
+    fn visit_mut_strong_emphasis(&mut self, node: &mut StrongEmphasis) {
+        <V as VisitMut>::visit_mut_strong_emphasis(&mut **self, node)
+    }
+
+    #[inline]
     fn visit_mut_textual_content(&mut self, node: &mut TextualContent) {
         <V as VisitMut>::visit_mut_textual_content(&mut **self, node)
+    }
+
+    #[inline]
+    fn visit_mut_textual_contents(&mut self, node: &mut Vec<TextualContent>) {
+        <V as VisitMut>::visit_mut_textual_contents(&mut **self, node)
     }
 
     #[inline]
@@ -5129,6 +5737,14 @@ where
     A: VisitMut,
     B: VisitMut,
 {
+    #[inline]
+    fn visit_mut_atom(&mut self, node: &mut swc_atoms::Atom) {
+        match self {
+            swc_visit::Either::Left(visitor) => VisitMut::visit_mut_atom(visitor, node),
+            swc_visit::Either::Right(visitor) => VisitMut::visit_mut_atom(visitor, node),
+        }
+    }
+
     #[inline]
     fn visit_mut_atx_heading(&mut self, node: &mut ATXHeading) {
         match self {
@@ -5154,14 +5770,6 @@ where
     }
 
     #[inline]
-    fn visit_mut_block(&mut self, node: &mut Block) {
-        match self {
-            swc_visit::Either::Left(visitor) => VisitMut::visit_mut_block(visitor, node),
-            swc_visit::Either::Right(visitor) => VisitMut::visit_mut_block(visitor, node),
-        }
-    }
-
-    #[inline]
     fn visit_mut_block_quote(&mut self, node: &mut BlockQuote) {
         match self {
             swc_visit::Either::Left(visitor) => VisitMut::visit_mut_block_quote(visitor, node),
@@ -5170,10 +5778,18 @@ where
     }
 
     #[inline]
-    fn visit_mut_blocks(&mut self, node: &mut Vec<Block>) {
+    fn visit_mut_child(&mut self, node: &mut Child) {
         match self {
-            swc_visit::Either::Left(visitor) => VisitMut::visit_mut_blocks(visitor, node),
-            swc_visit::Either::Right(visitor) => VisitMut::visit_mut_blocks(visitor, node),
+            swc_visit::Either::Left(visitor) => VisitMut::visit_mut_child(visitor, node),
+            swc_visit::Either::Right(visitor) => VisitMut::visit_mut_child(visitor, node),
+        }
+    }
+
+    #[inline]
+    fn visit_mut_childs(&mut self, node: &mut Vec<Child>) {
+        match self {
+            swc_visit::Either::Left(visitor) => VisitMut::visit_mut_childs(visitor, node),
+            swc_visit::Either::Right(visitor) => VisitMut::visit_mut_childs(visitor, node),
         }
     }
 
@@ -5202,14 +5818,10 @@ where
     }
 
     #[inline]
-    fn visit_mut_emphasis_and_strong_emphasis(&mut self, node: &mut EmphasisAndStrongEmphasis) {
+    fn visit_mut_emphasis(&mut self, node: &mut Emphasis) {
         match self {
-            swc_visit::Either::Left(visitor) => {
-                VisitMut::visit_mut_emphasis_and_strong_emphasis(visitor, node)
-            }
-            swc_visit::Either::Right(visitor) => {
-                VisitMut::visit_mut_emphasis_and_strong_emphasis(visitor, node)
-            }
+            swc_visit::Either::Left(visitor) => VisitMut::visit_mut_emphasis(visitor, node),
+            swc_visit::Either::Right(visitor) => VisitMut::visit_mut_emphasis(visitor, node),
         }
     }
 
@@ -5270,14 +5882,6 @@ where
     }
 
     #[inline]
-    fn visit_mut_inline_blocks(&mut self, node: &mut Vec<InlineBlock>) {
-        match self {
-            swc_visit::Either::Left(visitor) => VisitMut::visit_mut_inline_blocks(visitor, node),
-            swc_visit::Either::Right(visitor) => VisitMut::visit_mut_inline_blocks(visitor, node),
-        }
-    }
-
-    #[inline]
     fn visit_mut_leaf_block(&mut self, node: &mut LeafBlock) {
         match self {
             swc_visit::Either::Left(visitor) => VisitMut::visit_mut_leaf_block(visitor, node),
@@ -5318,6 +5922,14 @@ where
         match self {
             swc_visit::Either::Left(visitor) => VisitMut::visit_mut_list_item(visitor, node),
             swc_visit::Either::Right(visitor) => VisitMut::visit_mut_list_item(visitor, node),
+        }
+    }
+
+    #[inline]
+    fn visit_mut_opt_atom(&mut self, node: &mut Option<swc_atoms::Atom>) {
+        match self {
+            swc_visit::Either::Left(visitor) => VisitMut::visit_mut_opt_atom(visitor, node),
+            swc_visit::Either::Right(visitor) => VisitMut::visit_mut_opt_atom(visitor, node),
         }
     }
 
@@ -5370,10 +5982,28 @@ where
     }
 
     #[inline]
+    fn visit_mut_strong_emphasis(&mut self, node: &mut StrongEmphasis) {
+        match self {
+            swc_visit::Either::Left(visitor) => VisitMut::visit_mut_strong_emphasis(visitor, node),
+            swc_visit::Either::Right(visitor) => VisitMut::visit_mut_strong_emphasis(visitor, node),
+        }
+    }
+
+    #[inline]
     fn visit_mut_textual_content(&mut self, node: &mut TextualContent) {
         match self {
             swc_visit::Either::Left(visitor) => VisitMut::visit_mut_textual_content(visitor, node),
             swc_visit::Either::Right(visitor) => VisitMut::visit_mut_textual_content(visitor, node),
+        }
+    }
+
+    #[inline]
+    fn visit_mut_textual_contents(&mut self, node: &mut Vec<TextualContent>) {
+        match self {
+            swc_visit::Either::Left(visitor) => VisitMut::visit_mut_textual_contents(visitor, node),
+            swc_visit::Either::Right(visitor) => {
+                VisitMut::visit_mut_textual_contents(visitor, node)
+            }
         }
     }
 
@@ -5389,6 +6019,14 @@ impl<V> VisitMut for ::swc_visit::Optional<V>
 where
     V: VisitMut,
 {
+    #[inline]
+    fn visit_mut_atom(&mut self, node: &mut swc_atoms::Atom) {
+        if self.enabled {
+            <V as VisitMut>::visit_mut_atom(&mut self.visitor, node)
+        } else {
+        }
+    }
+
     #[inline]
     fn visit_mut_atx_heading(&mut self, node: &mut ATXHeading) {
         if self.enabled {
@@ -5414,14 +6052,6 @@ where
     }
 
     #[inline]
-    fn visit_mut_block(&mut self, node: &mut Block) {
-        if self.enabled {
-            <V as VisitMut>::visit_mut_block(&mut self.visitor, node)
-        } else {
-        }
-    }
-
-    #[inline]
     fn visit_mut_block_quote(&mut self, node: &mut BlockQuote) {
         if self.enabled {
             <V as VisitMut>::visit_mut_block_quote(&mut self.visitor, node)
@@ -5430,9 +6060,17 @@ where
     }
 
     #[inline]
-    fn visit_mut_blocks(&mut self, node: &mut Vec<Block>) {
+    fn visit_mut_child(&mut self, node: &mut Child) {
         if self.enabled {
-            <V as VisitMut>::visit_mut_blocks(&mut self.visitor, node)
+            <V as VisitMut>::visit_mut_child(&mut self.visitor, node)
+        } else {
+        }
+    }
+
+    #[inline]
+    fn visit_mut_childs(&mut self, node: &mut Vec<Child>) {
+        if self.enabled {
+            <V as VisitMut>::visit_mut_childs(&mut self.visitor, node)
         } else {
         }
     }
@@ -5462,9 +6100,9 @@ where
     }
 
     #[inline]
-    fn visit_mut_emphasis_and_strong_emphasis(&mut self, node: &mut EmphasisAndStrongEmphasis) {
+    fn visit_mut_emphasis(&mut self, node: &mut Emphasis) {
         if self.enabled {
-            <V as VisitMut>::visit_mut_emphasis_and_strong_emphasis(&mut self.visitor, node)
+            <V as VisitMut>::visit_mut_emphasis(&mut self.visitor, node)
         } else {
         }
     }
@@ -5518,14 +6156,6 @@ where
     }
 
     #[inline]
-    fn visit_mut_inline_blocks(&mut self, node: &mut Vec<InlineBlock>) {
-        if self.enabled {
-            <V as VisitMut>::visit_mut_inline_blocks(&mut self.visitor, node)
-        } else {
-        }
-    }
-
-    #[inline]
     fn visit_mut_leaf_block(&mut self, node: &mut LeafBlock) {
         if self.enabled {
             <V as VisitMut>::visit_mut_leaf_block(&mut self.visitor, node)
@@ -5561,6 +6191,14 @@ where
     fn visit_mut_list_item(&mut self, node: &mut ListItem) {
         if self.enabled {
             <V as VisitMut>::visit_mut_list_item(&mut self.visitor, node)
+        } else {
+        }
+    }
+
+    #[inline]
+    fn visit_mut_opt_atom(&mut self, node: &mut Option<swc_atoms::Atom>) {
+        if self.enabled {
+            <V as VisitMut>::visit_mut_opt_atom(&mut self.visitor, node)
         } else {
         }
     }
@@ -5614,9 +6252,25 @@ where
     }
 
     #[inline]
+    fn visit_mut_strong_emphasis(&mut self, node: &mut StrongEmphasis) {
+        if self.enabled {
+            <V as VisitMut>::visit_mut_strong_emphasis(&mut self.visitor, node)
+        } else {
+        }
+    }
+
+    #[inline]
     fn visit_mut_textual_content(&mut self, node: &mut TextualContent) {
         if self.enabled {
             <V as VisitMut>::visit_mut_textual_content(&mut self.visitor, node)
+        } else {
+        }
+    }
+
+    #[inline]
+    fn visit_mut_textual_contents(&mut self, node: &mut Vec<TextualContent>) {
+        if self.enabled {
+            <V as VisitMut>::visit_mut_textual_contents(&mut self.visitor, node)
         } else {
         }
     }
@@ -5653,7 +6307,7 @@ impl<V: ?Sized + VisitMut> VisitMutWith<V> for ATXHeading {
                     <swc_common::Span as VisitMutWith<V>>::visit_mut_with(span, visitor)
                 };
                 {
-                    <Vec<InlineBlock> as VisitMutWith<V>>::visit_mut_with(children, visitor)
+                    <Vec<Child> as VisitMutWith<V>>::visit_mut_with(children, visitor)
                 };
             }
         }
@@ -5691,26 +6345,6 @@ impl<V: ?Sized + VisitMut> VisitMutWith<V> for BlankLine {
         }
     }
 }
-impl<V: ?Sized + VisitMut> VisitMutWith<V> for Block {
-    #[doc = "Calls [VisitMut`::visit_mut_block`] with `self`."]
-    fn visit_mut_with(&mut self, visitor: &mut V) {
-        <V as VisitMut>::visit_mut_block(visitor, self)
-    }
-
-    fn visit_mut_children_with(&mut self, visitor: &mut V) {
-        match self {
-            Block::Leaf { 0: _field_0 } => {
-                <LeafBlock as VisitMutWith<V>>::visit_mut_with(_field_0, visitor);
-            }
-            Block::Container { 0: _field_0 } => {
-                <ContainerBlock as VisitMutWith<V>>::visit_mut_with(_field_0, visitor);
-            }
-            Block::Inline { 0: _field_0 } => {
-                <InlineBlock as VisitMutWith<V>>::visit_mut_with(_field_0, visitor);
-            }
-        }
-    }
-}
 impl<V: ?Sized + VisitMut> VisitMutWith<V> for BlockQuote {
     #[doc = "Calls [VisitMut`::visit_mut_block_quote`] with `self`."]
     fn visit_mut_with(&mut self, visitor: &mut V) {
@@ -5719,10 +6353,33 @@ impl<V: ?Sized + VisitMut> VisitMutWith<V> for BlockQuote {
 
     fn visit_mut_children_with(&mut self, visitor: &mut V) {
         match self {
-            BlockQuote { span } => {
+            BlockQuote { span, children } => {
                 {
                     <swc_common::Span as VisitMutWith<V>>::visit_mut_with(span, visitor)
                 };
+                {
+                    <Vec<Child> as VisitMutWith<V>>::visit_mut_with(children, visitor)
+                };
+            }
+        }
+    }
+}
+impl<V: ?Sized + VisitMut> VisitMutWith<V> for Child {
+    #[doc = "Calls [VisitMut`::visit_mut_child`] with `self`."]
+    fn visit_mut_with(&mut self, visitor: &mut V) {
+        <V as VisitMut>::visit_mut_child(visitor, self)
+    }
+
+    fn visit_mut_children_with(&mut self, visitor: &mut V) {
+        match self {
+            Child::Leaf { 0: _field_0 } => {
+                <LeafBlock as VisitMutWith<V>>::visit_mut_with(_field_0, visitor);
+            }
+            Child::Container { 0: _field_0 } => {
+                <ContainerBlock as VisitMutWith<V>>::visit_mut_with(_field_0, visitor);
+            }
+            Child::Inline { 0: _field_0 } => {
+                <InlineBlock as VisitMutWith<V>>::visit_mut_with(_field_0, visitor);
             }
         }
     }
@@ -5781,23 +6438,26 @@ impl<V: ?Sized + VisitMut> VisitMutWith<V> for Document {
                     <swc_common::Span as VisitMutWith<V>>::visit_mut_with(span, visitor)
                 };
                 {
-                    <Vec<Block> as VisitMutWith<V>>::visit_mut_with(children, visitor)
+                    <Vec<Child> as VisitMutWith<V>>::visit_mut_with(children, visitor)
                 };
             }
         }
     }
 }
-impl<V: ?Sized + VisitMut> VisitMutWith<V> for EmphasisAndStrongEmphasis {
-    #[doc = "Calls [VisitMut`::visit_mut_emphasis_and_strong_emphasis`] with `self`."]
+impl<V: ?Sized + VisitMut> VisitMutWith<V> for Emphasis {
+    #[doc = "Calls [VisitMut`::visit_mut_emphasis`] with `self`."]
     fn visit_mut_with(&mut self, visitor: &mut V) {
-        <V as VisitMut>::visit_mut_emphasis_and_strong_emphasis(visitor, self)
+        <V as VisitMut>::visit_mut_emphasis(visitor, self)
     }
 
     fn visit_mut_children_with(&mut self, visitor: &mut V) {
         match self {
-            EmphasisAndStrongEmphasis { span } => {
+            Emphasis { span, content } => {
                 {
                     <swc_common::Span as VisitMutWith<V>>::visit_mut_with(span, visitor)
+                };
+                {
+                    <Vec<TextualContent> as VisitMutWith<V>>::visit_mut_with(content, visitor)
                 };
             }
         }
@@ -5811,9 +6471,15 @@ impl<V: ?Sized + VisitMut> VisitMutWith<V> for FencedCodeBlock {
 
     fn visit_mut_children_with(&mut self, visitor: &mut V) {
         match self {
-            FencedCodeBlock { span } => {
+            FencedCodeBlock { span, info, code } => {
                 {
                     <swc_common::Span as VisitMutWith<V>>::visit_mut_with(span, visitor)
+                };
+                {
+                    <Option<swc_atoms::Atom> as VisitMutWith<V>>::visit_mut_with(info, visitor)
+                };
+                {
+                    <swc_atoms::Atom as VisitMutWith<V>>::visit_mut_with(code, visitor)
                 };
             }
         }
@@ -5827,9 +6493,12 @@ impl<V: ?Sized + VisitMut> VisitMutWith<V> for HTMLBlock {
 
     fn visit_mut_children_with(&mut self, visitor: &mut V) {
         match self {
-            HTMLBlock { span } => {
+            HTMLBlock { span, html } => {
                 {
                     <swc_common::Span as VisitMutWith<V>>::visit_mut_with(span, visitor)
+                };
+                {
+                    <swc_atoms::Atom as VisitMutWith<V>>::visit_mut_with(html, visitor)
                 };
             }
         }
@@ -5875,9 +6544,12 @@ impl<V: ?Sized + VisitMut> VisitMutWith<V> for IndentedCodeBlock {
 
     fn visit_mut_children_with(&mut self, visitor: &mut V) {
         match self {
-            IndentedCodeBlock { span } => {
+            IndentedCodeBlock { span, code } => {
                 {
                     <swc_common::Span as VisitMutWith<V>>::visit_mut_with(span, visitor)
+                };
+                {
+                    <swc_atoms::Atom as VisitMutWith<V>>::visit_mut_with(code, visitor)
                 };
             }
         }
@@ -5894,8 +6566,11 @@ impl<V: ?Sized + VisitMut> VisitMutWith<V> for InlineBlock {
             InlineBlock::CodeSpan { 0: _field_0 } => {
                 <CodeSpan as VisitMutWith<V>>::visit_mut_with(_field_0, visitor);
             }
-            InlineBlock::EmphasisAndStrongEmphasis { 0: _field_0 } => {
-                <EmphasisAndStrongEmphasis as VisitMutWith<V>>::visit_mut_with(_field_0, visitor);
+            InlineBlock::Emphasis { 0: _field_0 } => {
+                <Emphasis as VisitMutWith<V>>::visit_mut_with(_field_0, visitor);
+            }
+            InlineBlock::StrongEmphasis { 0: _field_0 } => {
+                <StrongEmphasis as VisitMutWith<V>>::visit_mut_with(_field_0, visitor);
             }
             InlineBlock::Link { 0: _field_0 } => {
                 <Link as VisitMutWith<V>>::visit_mut_with(_field_0, visitor);
@@ -5983,9 +6658,23 @@ impl<V: ?Sized + VisitMut> VisitMutWith<V> for LinkReferenceDefinition {
 
     fn visit_mut_children_with(&mut self, visitor: &mut V) {
         match self {
-            LinkReferenceDefinition { span } => {
+            LinkReferenceDefinition {
+                span,
+                label,
+                destination,
+                title,
+            } => {
                 {
                     <swc_common::Span as VisitMutWith<V>>::visit_mut_with(span, visitor)
+                };
+                {
+                    <swc_atoms::Atom as VisitMutWith<V>>::visit_mut_with(label, visitor)
+                };
+                {
+                    <swc_atoms::Atom as VisitMutWith<V>>::visit_mut_with(destination, visitor)
+                };
+                {
+                    <Option<swc_atoms::Atom> as VisitMutWith<V>>::visit_mut_with(title, visitor)
                 };
             }
         }
@@ -6036,7 +6725,7 @@ impl<V: ?Sized + VisitMut> VisitMutWith<V> for Paragraph {
                     <swc_common::Span as VisitMutWith<V>>::visit_mut_with(span, visitor)
                 };
                 {
-                    <Vec<InlineBlock> as VisitMutWith<V>>::visit_mut_with(children, visitor)
+                    <Vec<Child> as VisitMutWith<V>>::visit_mut_with(children, visitor)
                 };
             }
         }
@@ -6075,7 +6764,7 @@ impl<V: ?Sized + VisitMut> VisitMutWith<V> for SetextHeading {
                     <swc_common::Span as VisitMutWith<V>>::visit_mut_with(span, visitor)
                 };
                 {
-                    <Vec<InlineBlock> as VisitMutWith<V>>::visit_mut_with(children, visitor)
+                    <Vec<Child> as VisitMutWith<V>>::visit_mut_with(children, visitor)
                 };
             }
         }
@@ -6092,6 +6781,25 @@ impl<V: ?Sized + VisitMut> VisitMutWith<V> for SoftLineBreak {
             SoftLineBreak { span } => {
                 {
                     <swc_common::Span as VisitMutWith<V>>::visit_mut_with(span, visitor)
+                };
+            }
+        }
+    }
+}
+impl<V: ?Sized + VisitMut> VisitMutWith<V> for StrongEmphasis {
+    #[doc = "Calls [VisitMut`::visit_mut_strong_emphasis`] with `self`."]
+    fn visit_mut_with(&mut self, visitor: &mut V) {
+        <V as VisitMut>::visit_mut_strong_emphasis(visitor, self)
+    }
+
+    fn visit_mut_children_with(&mut self, visitor: &mut V) {
+        match self {
+            StrongEmphasis { span, content } => {
+                {
+                    <swc_common::Span as VisitMutWith<V>>::visit_mut_with(span, visitor)
+                };
+                {
+                    <Vec<TextualContent> as VisitMutWith<V>>::visit_mut_with(content, visitor)
                 };
             }
         }
@@ -6132,30 +6840,44 @@ impl<V: ?Sized + VisitMut> VisitMutWith<V> for ThematicBreak {
         }
     }
 }
-impl<V: ?Sized + VisitMut> VisitMutWith<V> for Vec<Block> {
-    #[doc = "Calls [VisitMut`::visit_mut_blocks`] with `self`. (Extra impl)"]
+impl<V: ?Sized + VisitMut> VisitMutWith<V> for swc_atoms::Atom {
+    #[doc = "Calls [VisitMut`::visit_mut_atom`] with `self`. (Extra impl)"]
     #[inline]
     fn visit_mut_with(&mut self, visitor: &mut V) {
-        <V as VisitMut>::visit_mut_blocks(visitor, self)
+        <V as VisitMut>::visit_mut_atom(visitor, self)
     }
 
     #[inline]
     fn visit_mut_children_with(&mut self, visitor: &mut V) {
-        self.iter_mut()
-            .for_each(|item| <Block as VisitMutWith<V>>::visit_mut_with(item, visitor))
+        {}
     }
 }
-impl<V: ?Sized + VisitMut> VisitMutWith<V> for Vec<InlineBlock> {
-    #[doc = "Calls [VisitMut`::visit_mut_inline_blocks`] with `self`. (Extra impl)"]
+impl<V: ?Sized + VisitMut> VisitMutWith<V> for Vec<Child> {
+    #[doc = "Calls [VisitMut`::visit_mut_childs`] with `self`. (Extra impl)"]
     #[inline]
     fn visit_mut_with(&mut self, visitor: &mut V) {
-        <V as VisitMut>::visit_mut_inline_blocks(visitor, self)
+        <V as VisitMut>::visit_mut_childs(visitor, self)
     }
 
     #[inline]
     fn visit_mut_children_with(&mut self, visitor: &mut V) {
         self.iter_mut()
-            .for_each(|item| <InlineBlock as VisitMutWith<V>>::visit_mut_with(item, visitor))
+            .for_each(|item| <Child as VisitMutWith<V>>::visit_mut_with(item, visitor))
+    }
+}
+impl<V: ?Sized + VisitMut> VisitMutWith<V> for Option<swc_atoms::Atom> {
+    #[doc = "Calls [VisitMut`::visit_mut_opt_atom`] with `self`. (Extra impl)"]
+    #[inline]
+    fn visit_mut_with(&mut self, visitor: &mut V) {
+        <V as VisitMut>::visit_mut_opt_atom(visitor, self)
+    }
+
+    #[inline]
+    fn visit_mut_children_with(&mut self, visitor: &mut V) {
+        match self {
+            Some(inner) => <swc_atoms::Atom as VisitMutWith<V>>::visit_mut_with(inner, visitor),
+            None => {}
+        }
     }
 }
 impl<V: ?Sized + VisitMut> VisitMutWith<V> for swc_common::Span {
@@ -6182,6 +6904,19 @@ impl<V: ?Sized + VisitMut> VisitMutWith<V> for String {
         {}
     }
 }
+impl<V: ?Sized + VisitMut> VisitMutWith<V> for Vec<TextualContent> {
+    #[doc = "Calls [VisitMut`::visit_mut_textual_contents`] with `self`. (Extra impl)"]
+    #[inline]
+    fn visit_mut_with(&mut self, visitor: &mut V) {
+        <V as VisitMut>::visit_mut_textual_contents(visitor, self)
+    }
+
+    #[inline]
+    fn visit_mut_children_with(&mut self, visitor: &mut V) {
+        self.iter_mut()
+            .for_each(|item| <TextualContent as VisitMutWith<V>>::visit_mut_with(item, visitor))
+    }
+}
 impl<V, T> VisitMutWith<V> for std::boxed::Box<T>
 where
     V: ?Sized + VisitMut,
@@ -6203,6 +6938,15 @@ where
 #[cfg(any(docsrs, feature = "path"))]
 #[cfg_attr(docsrs, doc(cfg(feature = "path")))]
 pub trait VisitMutAstPath {
+    #[doc = "Visit a node of type `swc_atoms :: Atom`.\n\nBy default, this method calls \
+             [`swc_atoms :: Atom::visit_mut_children_with_ast_path`]. If you want to recurse, you \
+             need to call it manually."]
+    #[inline]
+    fn visit_mut_atom(&mut self, node: &mut swc_atoms::Atom, __ast_path: &mut AstKindPath) {
+        <swc_atoms::Atom as VisitMutWithAstPath<Self>>::visit_mut_children_with_ast_path(
+            node, self, __ast_path,
+        )
+    }
     #[doc = "Visit a node of type `ATXHeading`.\n\nBy default, this method calls \
              [`ATXHeading::visit_mut_children_with_ast_path`]. If you want to recurse, you need to \
              call it manually."]
@@ -6230,15 +6974,6 @@ pub trait VisitMutAstPath {
             node, self, __ast_path,
         )
     }
-    #[doc = "Visit a node of type `Block`.\n\nBy default, this method calls \
-             [`Block::visit_mut_children_with_ast_path`]. If you want to recurse, you need to call \
-             it manually."]
-    #[inline]
-    fn visit_mut_block(&mut self, node: &mut Block, __ast_path: &mut AstKindPath) {
-        <Block as VisitMutWithAstPath<Self>>::visit_mut_children_with_ast_path(
-            node, self, __ast_path,
-        )
-    }
     #[doc = "Visit a node of type `BlockQuote`.\n\nBy default, this method calls \
              [`BlockQuote::visit_mut_children_with_ast_path`]. If you want to recurse, you need to \
              call it manually."]
@@ -6248,12 +6983,21 @@ pub trait VisitMutAstPath {
             node, self, __ast_path,
         )
     }
-    #[doc = "Visit a node of type `Vec < Block >`.\n\nBy default, this method calls [`Vec < Block \
+    #[doc = "Visit a node of type `Child`.\n\nBy default, this method calls \
+             [`Child::visit_mut_children_with_ast_path`]. If you want to recurse, you need to call \
+             it manually."]
+    #[inline]
+    fn visit_mut_child(&mut self, node: &mut Child, __ast_path: &mut AstKindPath) {
+        <Child as VisitMutWithAstPath<Self>>::visit_mut_children_with_ast_path(
+            node, self, __ast_path,
+        )
+    }
+    #[doc = "Visit a node of type `Vec < Child >`.\n\nBy default, this method calls [`Vec < Child \
              >::visit_mut_children_with_ast_path`]. If you want to recurse, you need to call it \
              manually."]
     #[inline]
-    fn visit_mut_blocks(&mut self, node: &mut Vec<Block>, __ast_path: &mut AstKindPath) {
-        <Vec<Block> as VisitMutWithAstPath<Self>>::visit_mut_children_with_ast_path(
+    fn visit_mut_childs(&mut self, node: &mut Vec<Child>, __ast_path: &mut AstKindPath) {
+        <Vec<Child> as VisitMutWithAstPath<Self>>::visit_mut_children_with_ast_path(
             node, self, __ast_path,
         )
     }
@@ -6288,16 +7032,12 @@ pub trait VisitMutAstPath {
             node, self, __ast_path,
         )
     }
-    #[doc = "Visit a node of type `EmphasisAndStrongEmphasis`.\n\nBy default, this method calls \
-             [`EmphasisAndStrongEmphasis::visit_mut_children_with_ast_path`]. If you want to \
-             recurse, you need to call it manually."]
+    #[doc = "Visit a node of type `Emphasis`.\n\nBy default, this method calls \
+             [`Emphasis::visit_mut_children_with_ast_path`]. If you want to recurse, you need to \
+             call it manually."]
     #[inline]
-    fn visit_mut_emphasis_and_strong_emphasis(
-        &mut self,
-        node: &mut EmphasisAndStrongEmphasis,
-        __ast_path: &mut AstKindPath,
-    ) {
-        <EmphasisAndStrongEmphasis as VisitMutWithAstPath<Self>>::visit_mut_children_with_ast_path(
+    fn visit_mut_emphasis(&mut self, node: &mut Emphasis, __ast_path: &mut AstKindPath) {
+        <Emphasis as VisitMutWithAstPath<Self>>::visit_mut_children_with_ast_path(
             node, self, __ast_path,
         )
     }
@@ -6367,19 +7107,6 @@ pub trait VisitMutAstPath {
             node, self, __ast_path,
         )
     }
-    #[doc = "Visit a node of type `Vec < InlineBlock >`.\n\nBy default, this method calls [`Vec < \
-             InlineBlock >::visit_mut_children_with_ast_path`]. If you want to recurse, you need \
-             to call it manually."]
-    #[inline]
-    fn visit_mut_inline_blocks(
-        &mut self,
-        node: &mut Vec<InlineBlock>,
-        __ast_path: &mut AstKindPath,
-    ) {
-        <Vec<InlineBlock> as VisitMutWithAstPath<Self>>::visit_mut_children_with_ast_path(
-            node, self, __ast_path,
-        )
-    }
     #[doc = "Visit a node of type `LeafBlock`.\n\nBy default, this method calls \
              [`LeafBlock::visit_mut_children_with_ast_path`]. If you want to recurse, you need to \
              call it manually."]
@@ -6426,6 +7153,19 @@ pub trait VisitMutAstPath {
     #[inline]
     fn visit_mut_list_item(&mut self, node: &mut ListItem, __ast_path: &mut AstKindPath) {
         <ListItem as VisitMutWithAstPath<Self>>::visit_mut_children_with_ast_path(
+            node, self, __ast_path,
+        )
+    }
+    #[doc = "Visit a node of type `Option < swc_atoms :: Atom >`.\n\nBy default, this method calls \
+             [`Option < swc_atoms :: Atom >::visit_mut_children_with_ast_path`]. If you want to \
+             recurse, you need to call it manually."]
+    #[inline]
+    fn visit_mut_opt_atom(
+        &mut self,
+        node: &mut Option<swc_atoms::Atom>,
+        __ast_path: &mut AstKindPath,
+    ) {
+        <Option<swc_atoms::Atom> as VisitMutWithAstPath<Self>>::visit_mut_children_with_ast_path(
             node, self, __ast_path,
         )
     }
@@ -6487,6 +7227,19 @@ pub trait VisitMutAstPath {
             node, self, __ast_path,
         )
     }
+    #[doc = "Visit a node of type `StrongEmphasis`.\n\nBy default, this method calls \
+             [`StrongEmphasis::visit_mut_children_with_ast_path`]. If you want to recurse, you \
+             need to call it manually."]
+    #[inline]
+    fn visit_mut_strong_emphasis(
+        &mut self,
+        node: &mut StrongEmphasis,
+        __ast_path: &mut AstKindPath,
+    ) {
+        <StrongEmphasis as VisitMutWithAstPath<Self>>::visit_mut_children_with_ast_path(
+            node, self, __ast_path,
+        )
+    }
     #[doc = "Visit a node of type `TextualContent`.\n\nBy default, this method calls \
              [`TextualContent::visit_mut_children_with_ast_path`]. If you want to recurse, you \
              need to call it manually."]
@@ -6497,6 +7250,19 @@ pub trait VisitMutAstPath {
         __ast_path: &mut AstKindPath,
     ) {
         <TextualContent as VisitMutWithAstPath<Self>>::visit_mut_children_with_ast_path(
+            node, self, __ast_path,
+        )
+    }
+    #[doc = "Visit a node of type `Vec < TextualContent >`.\n\nBy default, this method calls [`Vec \
+             < TextualContent >::visit_mut_children_with_ast_path`]. If you want to recurse, you \
+             need to call it manually."]
+    #[inline]
+    fn visit_mut_textual_contents(
+        &mut self,
+        node: &mut Vec<TextualContent>,
+        __ast_path: &mut AstKindPath,
+    ) {
+        <Vec<TextualContent> as VisitMutWithAstPath<Self>>::visit_mut_children_with_ast_path(
             node, self, __ast_path,
         )
     }
@@ -6517,6 +7283,11 @@ where
     V: ?Sized + VisitMutAstPath,
 {
     #[inline]
+    fn visit_mut_atom(&mut self, node: &mut swc_atoms::Atom, __ast_path: &mut AstKindPath) {
+        <V as VisitMutAstPath>::visit_mut_atom(&mut **self, node, __ast_path)
+    }
+
+    #[inline]
     fn visit_mut_atx_heading(&mut self, node: &mut ATXHeading, __ast_path: &mut AstKindPath) {
         <V as VisitMutAstPath>::visit_mut_atx_heading(&mut **self, node, __ast_path)
     }
@@ -6532,18 +7303,18 @@ where
     }
 
     #[inline]
-    fn visit_mut_block(&mut self, node: &mut Block, __ast_path: &mut AstKindPath) {
-        <V as VisitMutAstPath>::visit_mut_block(&mut **self, node, __ast_path)
-    }
-
-    #[inline]
     fn visit_mut_block_quote(&mut self, node: &mut BlockQuote, __ast_path: &mut AstKindPath) {
         <V as VisitMutAstPath>::visit_mut_block_quote(&mut **self, node, __ast_path)
     }
 
     #[inline]
-    fn visit_mut_blocks(&mut self, node: &mut Vec<Block>, __ast_path: &mut AstKindPath) {
-        <V as VisitMutAstPath>::visit_mut_blocks(&mut **self, node, __ast_path)
+    fn visit_mut_child(&mut self, node: &mut Child, __ast_path: &mut AstKindPath) {
+        <V as VisitMutAstPath>::visit_mut_child(&mut **self, node, __ast_path)
+    }
+
+    #[inline]
+    fn visit_mut_childs(&mut self, node: &mut Vec<Child>, __ast_path: &mut AstKindPath) {
+        <V as VisitMutAstPath>::visit_mut_childs(&mut **self, node, __ast_path)
     }
 
     #[inline]
@@ -6566,16 +7337,8 @@ where
     }
 
     #[inline]
-    fn visit_mut_emphasis_and_strong_emphasis(
-        &mut self,
-        node: &mut EmphasisAndStrongEmphasis,
-        __ast_path: &mut AstKindPath,
-    ) {
-        <V as VisitMutAstPath>::visit_mut_emphasis_and_strong_emphasis(
-            &mut **self,
-            node,
-            __ast_path,
-        )
+    fn visit_mut_emphasis(&mut self, node: &mut Emphasis, __ast_path: &mut AstKindPath) {
+        <V as VisitMutAstPath>::visit_mut_emphasis(&mut **self, node, __ast_path)
     }
 
     #[inline]
@@ -6621,15 +7384,6 @@ where
     }
 
     #[inline]
-    fn visit_mut_inline_blocks(
-        &mut self,
-        node: &mut Vec<InlineBlock>,
-        __ast_path: &mut AstKindPath,
-    ) {
-        <V as VisitMutAstPath>::visit_mut_inline_blocks(&mut **self, node, __ast_path)
-    }
-
-    #[inline]
     fn visit_mut_leaf_block(&mut self, node: &mut LeafBlock, __ast_path: &mut AstKindPath) {
         <V as VisitMutAstPath>::visit_mut_leaf_block(&mut **self, node, __ast_path)
     }
@@ -6656,6 +7410,15 @@ where
     #[inline]
     fn visit_mut_list_item(&mut self, node: &mut ListItem, __ast_path: &mut AstKindPath) {
         <V as VisitMutAstPath>::visit_mut_list_item(&mut **self, node, __ast_path)
+    }
+
+    #[inline]
+    fn visit_mut_opt_atom(
+        &mut self,
+        node: &mut Option<swc_atoms::Atom>,
+        __ast_path: &mut AstKindPath,
+    ) {
+        <V as VisitMutAstPath>::visit_mut_opt_atom(&mut **self, node, __ast_path)
     }
 
     #[inline]
@@ -6693,12 +7456,30 @@ where
     }
 
     #[inline]
+    fn visit_mut_strong_emphasis(
+        &mut self,
+        node: &mut StrongEmphasis,
+        __ast_path: &mut AstKindPath,
+    ) {
+        <V as VisitMutAstPath>::visit_mut_strong_emphasis(&mut **self, node, __ast_path)
+    }
+
+    #[inline]
     fn visit_mut_textual_content(
         &mut self,
         node: &mut TextualContent,
         __ast_path: &mut AstKindPath,
     ) {
         <V as VisitMutAstPath>::visit_mut_textual_content(&mut **self, node, __ast_path)
+    }
+
+    #[inline]
+    fn visit_mut_textual_contents(
+        &mut self,
+        node: &mut Vec<TextualContent>,
+        __ast_path: &mut AstKindPath,
+    ) {
+        <V as VisitMutAstPath>::visit_mut_textual_contents(&mut **self, node, __ast_path)
     }
 
     #[inline]
@@ -6713,6 +7494,11 @@ where
     V: ?Sized + VisitMutAstPath,
 {
     #[inline]
+    fn visit_mut_atom(&mut self, node: &mut swc_atoms::Atom, __ast_path: &mut AstKindPath) {
+        <V as VisitMutAstPath>::visit_mut_atom(&mut **self, node, __ast_path)
+    }
+
+    #[inline]
     fn visit_mut_atx_heading(&mut self, node: &mut ATXHeading, __ast_path: &mut AstKindPath) {
         <V as VisitMutAstPath>::visit_mut_atx_heading(&mut **self, node, __ast_path)
     }
@@ -6728,18 +7514,18 @@ where
     }
 
     #[inline]
-    fn visit_mut_block(&mut self, node: &mut Block, __ast_path: &mut AstKindPath) {
-        <V as VisitMutAstPath>::visit_mut_block(&mut **self, node, __ast_path)
-    }
-
-    #[inline]
     fn visit_mut_block_quote(&mut self, node: &mut BlockQuote, __ast_path: &mut AstKindPath) {
         <V as VisitMutAstPath>::visit_mut_block_quote(&mut **self, node, __ast_path)
     }
 
     #[inline]
-    fn visit_mut_blocks(&mut self, node: &mut Vec<Block>, __ast_path: &mut AstKindPath) {
-        <V as VisitMutAstPath>::visit_mut_blocks(&mut **self, node, __ast_path)
+    fn visit_mut_child(&mut self, node: &mut Child, __ast_path: &mut AstKindPath) {
+        <V as VisitMutAstPath>::visit_mut_child(&mut **self, node, __ast_path)
+    }
+
+    #[inline]
+    fn visit_mut_childs(&mut self, node: &mut Vec<Child>, __ast_path: &mut AstKindPath) {
+        <V as VisitMutAstPath>::visit_mut_childs(&mut **self, node, __ast_path)
     }
 
     #[inline]
@@ -6762,16 +7548,8 @@ where
     }
 
     #[inline]
-    fn visit_mut_emphasis_and_strong_emphasis(
-        &mut self,
-        node: &mut EmphasisAndStrongEmphasis,
-        __ast_path: &mut AstKindPath,
-    ) {
-        <V as VisitMutAstPath>::visit_mut_emphasis_and_strong_emphasis(
-            &mut **self,
-            node,
-            __ast_path,
-        )
+    fn visit_mut_emphasis(&mut self, node: &mut Emphasis, __ast_path: &mut AstKindPath) {
+        <V as VisitMutAstPath>::visit_mut_emphasis(&mut **self, node, __ast_path)
     }
 
     #[inline]
@@ -6817,15 +7595,6 @@ where
     }
 
     #[inline]
-    fn visit_mut_inline_blocks(
-        &mut self,
-        node: &mut Vec<InlineBlock>,
-        __ast_path: &mut AstKindPath,
-    ) {
-        <V as VisitMutAstPath>::visit_mut_inline_blocks(&mut **self, node, __ast_path)
-    }
-
-    #[inline]
     fn visit_mut_leaf_block(&mut self, node: &mut LeafBlock, __ast_path: &mut AstKindPath) {
         <V as VisitMutAstPath>::visit_mut_leaf_block(&mut **self, node, __ast_path)
     }
@@ -6852,6 +7621,15 @@ where
     #[inline]
     fn visit_mut_list_item(&mut self, node: &mut ListItem, __ast_path: &mut AstKindPath) {
         <V as VisitMutAstPath>::visit_mut_list_item(&mut **self, node, __ast_path)
+    }
+
+    #[inline]
+    fn visit_mut_opt_atom(
+        &mut self,
+        node: &mut Option<swc_atoms::Atom>,
+        __ast_path: &mut AstKindPath,
+    ) {
+        <V as VisitMutAstPath>::visit_mut_opt_atom(&mut **self, node, __ast_path)
     }
 
     #[inline]
@@ -6889,12 +7667,30 @@ where
     }
 
     #[inline]
+    fn visit_mut_strong_emphasis(
+        &mut self,
+        node: &mut StrongEmphasis,
+        __ast_path: &mut AstKindPath,
+    ) {
+        <V as VisitMutAstPath>::visit_mut_strong_emphasis(&mut **self, node, __ast_path)
+    }
+
+    #[inline]
     fn visit_mut_textual_content(
         &mut self,
         node: &mut TextualContent,
         __ast_path: &mut AstKindPath,
     ) {
         <V as VisitMutAstPath>::visit_mut_textual_content(&mut **self, node, __ast_path)
+    }
+
+    #[inline]
+    fn visit_mut_textual_contents(
+        &mut self,
+        node: &mut Vec<TextualContent>,
+        __ast_path: &mut AstKindPath,
+    ) {
+        <V as VisitMutAstPath>::visit_mut_textual_contents(&mut **self, node, __ast_path)
     }
 
     #[inline]
@@ -6910,6 +7706,18 @@ where
     B: VisitMutAstPath,
 {
     #[inline]
+    fn visit_mut_atom(&mut self, node: &mut swc_atoms::Atom, __ast_path: &mut AstKindPath) {
+        match self {
+            swc_visit::Either::Left(visitor) => {
+                VisitMutAstPath::visit_mut_atom(visitor, node, __ast_path)
+            }
+            swc_visit::Either::Right(visitor) => {
+                VisitMutAstPath::visit_mut_atom(visitor, node, __ast_path)
+            }
+        }
+    }
+
+    #[inline]
     fn visit_mut_atx_heading(&mut self, node: &mut ATXHeading, __ast_path: &mut AstKindPath) {
         match self {
             swc_visit::Either::Left(visitor) => {
@@ -6946,18 +7754,6 @@ where
     }
 
     #[inline]
-    fn visit_mut_block(&mut self, node: &mut Block, __ast_path: &mut AstKindPath) {
-        match self {
-            swc_visit::Either::Left(visitor) => {
-                VisitMutAstPath::visit_mut_block(visitor, node, __ast_path)
-            }
-            swc_visit::Either::Right(visitor) => {
-                VisitMutAstPath::visit_mut_block(visitor, node, __ast_path)
-            }
-        }
-    }
-
-    #[inline]
     fn visit_mut_block_quote(&mut self, node: &mut BlockQuote, __ast_path: &mut AstKindPath) {
         match self {
             swc_visit::Either::Left(visitor) => {
@@ -6970,13 +7766,25 @@ where
     }
 
     #[inline]
-    fn visit_mut_blocks(&mut self, node: &mut Vec<Block>, __ast_path: &mut AstKindPath) {
+    fn visit_mut_child(&mut self, node: &mut Child, __ast_path: &mut AstKindPath) {
         match self {
             swc_visit::Either::Left(visitor) => {
-                VisitMutAstPath::visit_mut_blocks(visitor, node, __ast_path)
+                VisitMutAstPath::visit_mut_child(visitor, node, __ast_path)
             }
             swc_visit::Either::Right(visitor) => {
-                VisitMutAstPath::visit_mut_blocks(visitor, node, __ast_path)
+                VisitMutAstPath::visit_mut_child(visitor, node, __ast_path)
+            }
+        }
+    }
+
+    #[inline]
+    fn visit_mut_childs(&mut self, node: &mut Vec<Child>, __ast_path: &mut AstKindPath) {
+        match self {
+            swc_visit::Either::Left(visitor) => {
+                VisitMutAstPath::visit_mut_childs(visitor, node, __ast_path)
+            }
+            swc_visit::Either::Right(visitor) => {
+                VisitMutAstPath::visit_mut_childs(visitor, node, __ast_path)
             }
         }
     }
@@ -7022,17 +7830,13 @@ where
     }
 
     #[inline]
-    fn visit_mut_emphasis_and_strong_emphasis(
-        &mut self,
-        node: &mut EmphasisAndStrongEmphasis,
-        __ast_path: &mut AstKindPath,
-    ) {
+    fn visit_mut_emphasis(&mut self, node: &mut Emphasis, __ast_path: &mut AstKindPath) {
         match self {
             swc_visit::Either::Left(visitor) => {
-                VisitMutAstPath::visit_mut_emphasis_and_strong_emphasis(visitor, node, __ast_path)
+                VisitMutAstPath::visit_mut_emphasis(visitor, node, __ast_path)
             }
             swc_visit::Either::Right(visitor) => {
-                VisitMutAstPath::visit_mut_emphasis_and_strong_emphasis(visitor, node, __ast_path)
+                VisitMutAstPath::visit_mut_emphasis(visitor, node, __ast_path)
             }
         }
     }
@@ -7122,22 +7926,6 @@ where
     }
 
     #[inline]
-    fn visit_mut_inline_blocks(
-        &mut self,
-        node: &mut Vec<InlineBlock>,
-        __ast_path: &mut AstKindPath,
-    ) {
-        match self {
-            swc_visit::Either::Left(visitor) => {
-                VisitMutAstPath::visit_mut_inline_blocks(visitor, node, __ast_path)
-            }
-            swc_visit::Either::Right(visitor) => {
-                VisitMutAstPath::visit_mut_inline_blocks(visitor, node, __ast_path)
-            }
-        }
-    }
-
-    #[inline]
     fn visit_mut_leaf_block(&mut self, node: &mut LeafBlock, __ast_path: &mut AstKindPath) {
         match self {
             swc_visit::Either::Left(visitor) => {
@@ -7197,6 +7985,22 @@ where
             }
             swc_visit::Either::Right(visitor) => {
                 VisitMutAstPath::visit_mut_list_item(visitor, node, __ast_path)
+            }
+        }
+    }
+
+    #[inline]
+    fn visit_mut_opt_atom(
+        &mut self,
+        node: &mut Option<swc_atoms::Atom>,
+        __ast_path: &mut AstKindPath,
+    ) {
+        match self {
+            swc_visit::Either::Left(visitor) => {
+                VisitMutAstPath::visit_mut_opt_atom(visitor, node, __ast_path)
+            }
+            swc_visit::Either::Right(visitor) => {
+                VisitMutAstPath::visit_mut_opt_atom(visitor, node, __ast_path)
             }
         }
     }
@@ -7278,6 +8082,22 @@ where
     }
 
     #[inline]
+    fn visit_mut_strong_emphasis(
+        &mut self,
+        node: &mut StrongEmphasis,
+        __ast_path: &mut AstKindPath,
+    ) {
+        match self {
+            swc_visit::Either::Left(visitor) => {
+                VisitMutAstPath::visit_mut_strong_emphasis(visitor, node, __ast_path)
+            }
+            swc_visit::Either::Right(visitor) => {
+                VisitMutAstPath::visit_mut_strong_emphasis(visitor, node, __ast_path)
+            }
+        }
+    }
+
+    #[inline]
     fn visit_mut_textual_content(
         &mut self,
         node: &mut TextualContent,
@@ -7289,6 +8109,22 @@ where
             }
             swc_visit::Either::Right(visitor) => {
                 VisitMutAstPath::visit_mut_textual_content(visitor, node, __ast_path)
+            }
+        }
+    }
+
+    #[inline]
+    fn visit_mut_textual_contents(
+        &mut self,
+        node: &mut Vec<TextualContent>,
+        __ast_path: &mut AstKindPath,
+    ) {
+        match self {
+            swc_visit::Either::Left(visitor) => {
+                VisitMutAstPath::visit_mut_textual_contents(visitor, node, __ast_path)
+            }
+            swc_visit::Either::Right(visitor) => {
+                VisitMutAstPath::visit_mut_textual_contents(visitor, node, __ast_path)
             }
         }
     }
@@ -7311,6 +8147,14 @@ impl<V> VisitMutAstPath for ::swc_visit::Optional<V>
 where
     V: VisitMutAstPath,
 {
+    #[inline]
+    fn visit_mut_atom(&mut self, node: &mut swc_atoms::Atom, __ast_path: &mut AstKindPath) {
+        if self.enabled {
+            <V as VisitMutAstPath>::visit_mut_atom(&mut self.visitor, node, __ast_path)
+        } else {
+        }
+    }
+
     #[inline]
     fn visit_mut_atx_heading(&mut self, node: &mut ATXHeading, __ast_path: &mut AstKindPath) {
         if self.enabled {
@@ -7336,14 +8180,6 @@ where
     }
 
     #[inline]
-    fn visit_mut_block(&mut self, node: &mut Block, __ast_path: &mut AstKindPath) {
-        if self.enabled {
-            <V as VisitMutAstPath>::visit_mut_block(&mut self.visitor, node, __ast_path)
-        } else {
-        }
-    }
-
-    #[inline]
     fn visit_mut_block_quote(&mut self, node: &mut BlockQuote, __ast_path: &mut AstKindPath) {
         if self.enabled {
             <V as VisitMutAstPath>::visit_mut_block_quote(&mut self.visitor, node, __ast_path)
@@ -7352,9 +8188,17 @@ where
     }
 
     #[inline]
-    fn visit_mut_blocks(&mut self, node: &mut Vec<Block>, __ast_path: &mut AstKindPath) {
+    fn visit_mut_child(&mut self, node: &mut Child, __ast_path: &mut AstKindPath) {
         if self.enabled {
-            <V as VisitMutAstPath>::visit_mut_blocks(&mut self.visitor, node, __ast_path)
+            <V as VisitMutAstPath>::visit_mut_child(&mut self.visitor, node, __ast_path)
+        } else {
+        }
+    }
+
+    #[inline]
+    fn visit_mut_childs(&mut self, node: &mut Vec<Child>, __ast_path: &mut AstKindPath) {
+        if self.enabled {
+            <V as VisitMutAstPath>::visit_mut_childs(&mut self.visitor, node, __ast_path)
         } else {
         }
     }
@@ -7388,17 +8232,9 @@ where
     }
 
     #[inline]
-    fn visit_mut_emphasis_and_strong_emphasis(
-        &mut self,
-        node: &mut EmphasisAndStrongEmphasis,
-        __ast_path: &mut AstKindPath,
-    ) {
+    fn visit_mut_emphasis(&mut self, node: &mut Emphasis, __ast_path: &mut AstKindPath) {
         if self.enabled {
-            <V as VisitMutAstPath>::visit_mut_emphasis_and_strong_emphasis(
-                &mut self.visitor,
-                node,
-                __ast_path,
-            )
+            <V as VisitMutAstPath>::visit_mut_emphasis(&mut self.visitor, node, __ast_path)
         } else {
         }
     }
@@ -7468,18 +8304,6 @@ where
     }
 
     #[inline]
-    fn visit_mut_inline_blocks(
-        &mut self,
-        node: &mut Vec<InlineBlock>,
-        __ast_path: &mut AstKindPath,
-    ) {
-        if self.enabled {
-            <V as VisitMutAstPath>::visit_mut_inline_blocks(&mut self.visitor, node, __ast_path)
-        } else {
-        }
-    }
-
-    #[inline]
     fn visit_mut_leaf_block(&mut self, node: &mut LeafBlock, __ast_path: &mut AstKindPath) {
         if self.enabled {
             <V as VisitMutAstPath>::visit_mut_leaf_block(&mut self.visitor, node, __ast_path)
@@ -7523,6 +8347,18 @@ where
     fn visit_mut_list_item(&mut self, node: &mut ListItem, __ast_path: &mut AstKindPath) {
         if self.enabled {
             <V as VisitMutAstPath>::visit_mut_list_item(&mut self.visitor, node, __ast_path)
+        } else {
+        }
+    }
+
+    #[inline]
+    fn visit_mut_opt_atom(
+        &mut self,
+        node: &mut Option<swc_atoms::Atom>,
+        __ast_path: &mut AstKindPath,
+    ) {
+        if self.enabled {
+            <V as VisitMutAstPath>::visit_mut_opt_atom(&mut self.visitor, node, __ast_path)
         } else {
         }
     }
@@ -7580,6 +8416,18 @@ where
     }
 
     #[inline]
+    fn visit_mut_strong_emphasis(
+        &mut self,
+        node: &mut StrongEmphasis,
+        __ast_path: &mut AstKindPath,
+    ) {
+        if self.enabled {
+            <V as VisitMutAstPath>::visit_mut_strong_emphasis(&mut self.visitor, node, __ast_path)
+        } else {
+        }
+    }
+
+    #[inline]
     fn visit_mut_textual_content(
         &mut self,
         node: &mut TextualContent,
@@ -7587,6 +8435,18 @@ where
     ) {
         if self.enabled {
             <V as VisitMutAstPath>::visit_mut_textual_content(&mut self.visitor, node, __ast_path)
+        } else {
+        }
+    }
+
+    #[inline]
+    fn visit_mut_textual_contents(
+        &mut self,
+        node: &mut Vec<TextualContent>,
+        __ast_path: &mut AstKindPath,
+    ) {
+        if self.enabled {
+            <V as VisitMutAstPath>::visit_mut_textual_contents(&mut self.visitor, node, __ast_path)
         } else {
         }
     }
@@ -7637,7 +8497,7 @@ impl<V: ?Sized + VisitMutAstPath> VisitMutWithAstPath<V> for ATXHeading {
                     let mut __ast_path = __ast_path.with_guard(AstParentKind::ATXHeading(
                         self::fields::ATXHeadingField::Children(usize::MAX),
                     ));
-                    <Vec<InlineBlock> as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
+                    <Vec<Child> as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
                         children,
                         visitor,
                         &mut *__ast_path,
@@ -7697,46 +8557,6 @@ impl<V: ?Sized + VisitMutAstPath> VisitMutWithAstPath<V> for BlankLine {
 }
 #[cfg(any(docsrs, feature = "path"))]
 #[cfg_attr(docsrs, doc(cfg(feature = "path")))]
-impl<V: ?Sized + VisitMutAstPath> VisitMutWithAstPath<V> for Block {
-    #[doc = "Calls [VisitMutAstPath`::visit_mut_block`] with `self`."]
-    fn visit_mut_with_ast_path(&mut self, visitor: &mut V, __ast_path: &mut AstKindPath) {
-        <V as VisitMutAstPath>::visit_mut_block(visitor, self, __ast_path)
-    }
-
-    fn visit_mut_children_with_ast_path(&mut self, visitor: &mut V, __ast_path: &mut AstKindPath) {
-        match self {
-            Block::Leaf { 0: _field_0 } => {
-                let mut __ast_path =
-                    __ast_path.with_guard(AstParentKind::Block(self::fields::BlockField::Leaf));
-                <LeafBlock as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
-                    _field_0,
-                    visitor,
-                    &mut *__ast_path,
-                );
-            }
-            Block::Container { 0: _field_0 } => {
-                let mut __ast_path = __ast_path
-                    .with_guard(AstParentKind::Block(self::fields::BlockField::Container));
-                <ContainerBlock as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
-                    _field_0,
-                    visitor,
-                    &mut *__ast_path,
-                );
-            }
-            Block::Inline { 0: _field_0 } => {
-                let mut __ast_path =
-                    __ast_path.with_guard(AstParentKind::Block(self::fields::BlockField::Inline));
-                <InlineBlock as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
-                    _field_0,
-                    visitor,
-                    &mut *__ast_path,
-                );
-            }
-        }
-    }
-}
-#[cfg(any(docsrs, feature = "path"))]
-#[cfg_attr(docsrs, doc(cfg(feature = "path")))]
 impl<V: ?Sized + VisitMutAstPath> VisitMutWithAstPath<V> for BlockQuote {
     #[doc = "Calls [VisitMutAstPath`::visit_mut_block_quote`] with `self`."]
     fn visit_mut_with_ast_path(&mut self, visitor: &mut V, __ast_path: &mut AstKindPath) {
@@ -7745,7 +8565,7 @@ impl<V: ?Sized + VisitMutAstPath> VisitMutWithAstPath<V> for BlockQuote {
 
     fn visit_mut_children_with_ast_path(&mut self, visitor: &mut V, __ast_path: &mut AstKindPath) {
         match self {
-            BlockQuote { span } => {
+            BlockQuote { span, children } => {
                 {
                     let mut __ast_path = __ast_path.with_guard(AstParentKind::BlockQuote(
                         self::fields::BlockQuoteField::Span,
@@ -7756,6 +8576,56 @@ impl<V: ?Sized + VisitMutAstPath> VisitMutWithAstPath<V> for BlockQuote {
                         &mut *__ast_path,
                     )
                 };
+                {
+                    let mut __ast_path = __ast_path.with_guard(AstParentKind::BlockQuote(
+                        self::fields::BlockQuoteField::Children(usize::MAX),
+                    ));
+                    <Vec<Child> as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
+                        children,
+                        visitor,
+                        &mut *__ast_path,
+                    )
+                };
+            }
+        }
+    }
+}
+#[cfg(any(docsrs, feature = "path"))]
+#[cfg_attr(docsrs, doc(cfg(feature = "path")))]
+impl<V: ?Sized + VisitMutAstPath> VisitMutWithAstPath<V> for Child {
+    #[doc = "Calls [VisitMutAstPath`::visit_mut_child`] with `self`."]
+    fn visit_mut_with_ast_path(&mut self, visitor: &mut V, __ast_path: &mut AstKindPath) {
+        <V as VisitMutAstPath>::visit_mut_child(visitor, self, __ast_path)
+    }
+
+    fn visit_mut_children_with_ast_path(&mut self, visitor: &mut V, __ast_path: &mut AstKindPath) {
+        match self {
+            Child::Leaf { 0: _field_0 } => {
+                let mut __ast_path =
+                    __ast_path.with_guard(AstParentKind::Child(self::fields::ChildField::Leaf));
+                <LeafBlock as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
+                    _field_0,
+                    visitor,
+                    &mut *__ast_path,
+                );
+            }
+            Child::Container { 0: _field_0 } => {
+                let mut __ast_path = __ast_path
+                    .with_guard(AstParentKind::Child(self::fields::ChildField::Container));
+                <ContainerBlock as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
+                    _field_0,
+                    visitor,
+                    &mut *__ast_path,
+                );
+            }
+            Child::Inline { 0: _field_0 } => {
+                let mut __ast_path =
+                    __ast_path.with_guard(AstParentKind::Child(self::fields::ChildField::Inline));
+                <InlineBlock as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
+                    _field_0,
+                    visitor,
+                    &mut *__ast_path,
+                );
             }
         }
     }
@@ -7856,7 +8726,7 @@ impl<V: ?Sized + VisitMutAstPath> VisitMutWithAstPath<V> for Document {
                     let mut __ast_path = __ast_path.with_guard(AstParentKind::Document(
                         self::fields::DocumentField::Children(usize::MAX),
                     ));
-                    <Vec<Block> as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
+                    <Vec<Child> as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
                         children,
                         visitor,
                         &mut *__ast_path,
@@ -7868,22 +8738,30 @@ impl<V: ?Sized + VisitMutAstPath> VisitMutWithAstPath<V> for Document {
 }
 #[cfg(any(docsrs, feature = "path"))]
 #[cfg_attr(docsrs, doc(cfg(feature = "path")))]
-impl<V: ?Sized + VisitMutAstPath> VisitMutWithAstPath<V> for EmphasisAndStrongEmphasis {
-    #[doc = "Calls [VisitMutAstPath`::visit_mut_emphasis_and_strong_emphasis`] with `self`."]
+impl<V: ?Sized + VisitMutAstPath> VisitMutWithAstPath<V> for Emphasis {
+    #[doc = "Calls [VisitMutAstPath`::visit_mut_emphasis`] with `self`."]
     fn visit_mut_with_ast_path(&mut self, visitor: &mut V, __ast_path: &mut AstKindPath) {
-        <V as VisitMutAstPath>::visit_mut_emphasis_and_strong_emphasis(visitor, self, __ast_path)
+        <V as VisitMutAstPath>::visit_mut_emphasis(visitor, self, __ast_path)
     }
 
     fn visit_mut_children_with_ast_path(&mut self, visitor: &mut V, __ast_path: &mut AstKindPath) {
         match self {
-            EmphasisAndStrongEmphasis { span } => {
+            Emphasis { span, content } => {
                 {
-                    let mut __ast_path =
-                        __ast_path.with_guard(AstParentKind::EmphasisAndStrongEmphasis(
-                            self::fields::EmphasisAndStrongEmphasisField::Span,
-                        ));
+                    let mut __ast_path = __ast_path
+                        .with_guard(AstParentKind::Emphasis(self::fields::EmphasisField::Span));
                     <swc_common::Span as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
                         span,
+                        visitor,
+                        &mut *__ast_path,
+                    )
+                };
+                {
+                    let mut __ast_path = __ast_path.with_guard(AstParentKind::Emphasis(
+                        self::fields::EmphasisField::Content(usize::MAX),
+                    ));
+                    <Vec<TextualContent> as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
+                        content,
                         visitor,
                         &mut *__ast_path,
                     )
@@ -7902,13 +8780,33 @@ impl<V: ?Sized + VisitMutAstPath> VisitMutWithAstPath<V> for FencedCodeBlock {
 
     fn visit_mut_children_with_ast_path(&mut self, visitor: &mut V, __ast_path: &mut AstKindPath) {
         match self {
-            FencedCodeBlock { span } => {
+            FencedCodeBlock { span, info, code } => {
                 {
                     let mut __ast_path = __ast_path.with_guard(AstParentKind::FencedCodeBlock(
                         self::fields::FencedCodeBlockField::Span,
                     ));
                     <swc_common::Span as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
                         span,
+                        visitor,
+                        &mut *__ast_path,
+                    )
+                };
+                {
+                    let mut __ast_path = __ast_path.with_guard(AstParentKind::FencedCodeBlock(
+                        self::fields::FencedCodeBlockField::Info,
+                    ));
+                    <Option<swc_atoms::Atom> as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
+                        info,
+                        visitor,
+                        &mut *__ast_path,
+                    )
+                };
+                {
+                    let mut __ast_path = __ast_path.with_guard(AstParentKind::FencedCodeBlock(
+                        self::fields::FencedCodeBlockField::Code,
+                    ));
+                    <swc_atoms::Atom as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
+                        code,
                         visitor,
                         &mut *__ast_path,
                     )
@@ -7927,12 +8825,21 @@ impl<V: ?Sized + VisitMutAstPath> VisitMutWithAstPath<V> for HTMLBlock {
 
     fn visit_mut_children_with_ast_path(&mut self, visitor: &mut V, __ast_path: &mut AstKindPath) {
         match self {
-            HTMLBlock { span } => {
+            HTMLBlock { span, html } => {
                 {
                     let mut __ast_path = __ast_path
                         .with_guard(AstParentKind::HTMLBlock(self::fields::HTMLBlockField::Span));
                     <swc_common::Span as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
                         span,
+                        visitor,
+                        &mut *__ast_path,
+                    )
+                };
+                {
+                    let mut __ast_path = __ast_path
+                        .with_guard(AstParentKind::HTMLBlock(self::fields::HTMLBlockField::Html));
+                    <swc_atoms::Atom as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
+                        html,
                         visitor,
                         &mut *__ast_path,
                     )
@@ -8000,13 +8907,23 @@ impl<V: ?Sized + VisitMutAstPath> VisitMutWithAstPath<V> for IndentedCodeBlock {
 
     fn visit_mut_children_with_ast_path(&mut self, visitor: &mut V, __ast_path: &mut AstKindPath) {
         match self {
-            IndentedCodeBlock { span } => {
+            IndentedCodeBlock { span, code } => {
                 {
                     let mut __ast_path = __ast_path.with_guard(AstParentKind::IndentedCodeBlock(
                         self::fields::IndentedCodeBlockField::Span,
                     ));
                     <swc_common::Span as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
                         span,
+                        visitor,
+                        &mut *__ast_path,
+                    )
+                };
+                {
+                    let mut __ast_path = __ast_path.with_guard(AstParentKind::IndentedCodeBlock(
+                        self::fields::IndentedCodeBlockField::Code,
+                    ));
+                    <swc_atoms::Atom as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
+                        code,
                         visitor,
                         &mut *__ast_path,
                     )
@@ -8035,11 +8952,21 @@ impl<V: ?Sized + VisitMutAstPath> VisitMutWithAstPath<V> for InlineBlock {
                     &mut *__ast_path,
                 );
             }
-            InlineBlock::EmphasisAndStrongEmphasis { 0: _field_0 } => {
+            InlineBlock::Emphasis { 0: _field_0 } => {
                 let mut __ast_path = __ast_path.with_guard(AstParentKind::InlineBlock(
-                    self::fields::InlineBlockField::EmphasisAndStrongEmphasis,
+                    self::fields::InlineBlockField::Emphasis,
                 ));
-                <EmphasisAndStrongEmphasis as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
+                <Emphasis as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
+                    _field_0,
+                    visitor,
+                    &mut *__ast_path,
+                );
+            }
+            InlineBlock::StrongEmphasis { 0: _field_0 } => {
+                let mut __ast_path = __ast_path.with_guard(AstParentKind::InlineBlock(
+                    self::fields::InlineBlockField::StrongEmphasis,
+                ));
+                <StrongEmphasis as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
                     _field_0,
                     visitor,
                     &mut *__ast_path,
@@ -8255,7 +9182,12 @@ impl<V: ?Sized + VisitMutAstPath> VisitMutWithAstPath<V> for LinkReferenceDefini
 
     fn visit_mut_children_with_ast_path(&mut self, visitor: &mut V, __ast_path: &mut AstKindPath) {
         match self {
-            LinkReferenceDefinition { span } => {
+            LinkReferenceDefinition {
+                span,
+                label,
+                destination,
+                title,
+            } => {
                 {
                     let mut __ast_path =
                         __ast_path.with_guard(AstParentKind::LinkReferenceDefinition(
@@ -8263,6 +9195,39 @@ impl<V: ?Sized + VisitMutAstPath> VisitMutWithAstPath<V> for LinkReferenceDefini
                         ));
                     <swc_common::Span as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
                         span,
+                        visitor,
+                        &mut *__ast_path,
+                    )
+                };
+                {
+                    let mut __ast_path =
+                        __ast_path.with_guard(AstParentKind::LinkReferenceDefinition(
+                            self::fields::LinkReferenceDefinitionField::Label,
+                        ));
+                    <swc_atoms::Atom as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
+                        label,
+                        visitor,
+                        &mut *__ast_path,
+                    )
+                };
+                {
+                    let mut __ast_path =
+                        __ast_path.with_guard(AstParentKind::LinkReferenceDefinition(
+                            self::fields::LinkReferenceDefinitionField::Destination,
+                        ));
+                    <swc_atoms::Atom as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
+                        destination,
+                        visitor,
+                        &mut *__ast_path,
+                    )
+                };
+                {
+                    let mut __ast_path =
+                        __ast_path.with_guard(AstParentKind::LinkReferenceDefinition(
+                            self::fields::LinkReferenceDefinitionField::Title,
+                        ));
+                    <Option<swc_atoms::Atom> as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
+                        title,
                         visitor,
                         &mut *__ast_path,
                     )
@@ -8343,7 +9308,7 @@ impl<V: ?Sized + VisitMutAstPath> VisitMutWithAstPath<V> for Paragraph {
                     let mut __ast_path = __ast_path.with_guard(AstParentKind::Paragraph(
                         self::fields::ParagraphField::Children(usize::MAX),
                     ));
-                    <Vec<InlineBlock> as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
+                    <Vec<Child> as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
                         children,
                         visitor,
                         &mut *__ast_path,
@@ -8406,7 +9371,7 @@ impl<V: ?Sized + VisitMutAstPath> VisitMutWithAstPath<V> for SetextHeading {
                     let mut __ast_path = __ast_path.with_guard(AstParentKind::SetextHeading(
                         self::fields::SetextHeadingField::Children(usize::MAX),
                     ));
-                    <Vec<InlineBlock> as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
+                    <Vec<Child> as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
                         children,
                         visitor,
                         &mut *__ast_path,
@@ -8433,6 +9398,41 @@ impl<V: ?Sized + VisitMutAstPath> VisitMutWithAstPath<V> for SoftLineBreak {
                     ));
                     <swc_common::Span as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
                         span,
+                        visitor,
+                        &mut *__ast_path,
+                    )
+                };
+            }
+        }
+    }
+}
+#[cfg(any(docsrs, feature = "path"))]
+#[cfg_attr(docsrs, doc(cfg(feature = "path")))]
+impl<V: ?Sized + VisitMutAstPath> VisitMutWithAstPath<V> for StrongEmphasis {
+    #[doc = "Calls [VisitMutAstPath`::visit_mut_strong_emphasis`] with `self`."]
+    fn visit_mut_with_ast_path(&mut self, visitor: &mut V, __ast_path: &mut AstKindPath) {
+        <V as VisitMutAstPath>::visit_mut_strong_emphasis(visitor, self, __ast_path)
+    }
+
+    fn visit_mut_children_with_ast_path(&mut self, visitor: &mut V, __ast_path: &mut AstKindPath) {
+        match self {
+            StrongEmphasis { span, content } => {
+                {
+                    let mut __ast_path = __ast_path.with_guard(AstParentKind::StrongEmphasis(
+                        self::fields::StrongEmphasisField::Span,
+                    ));
+                    <swc_common::Span as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
+                        span,
+                        visitor,
+                        &mut *__ast_path,
+                    )
+                };
+                {
+                    let mut __ast_path = __ast_path.with_guard(AstParentKind::StrongEmphasis(
+                        self::fields::StrongEmphasisField::Content(usize::MAX),
+                    ));
+                    <Vec<TextualContent> as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
+                        content,
                         visitor,
                         &mut *__ast_path,
                     )
@@ -8503,18 +9503,32 @@ impl<V: ?Sized + VisitMutAstPath> VisitMutWithAstPath<V> for ThematicBreak {
 }
 #[cfg(any(docsrs, feature = "path"))]
 #[cfg_attr(docsrs, doc(cfg(feature = "path")))]
-impl<V: ?Sized + VisitMutAstPath> VisitMutWithAstPath<V> for Vec<Block> {
-    #[doc = "Calls [VisitMutAstPath`::visit_mut_blocks`] with `self`. (Extra impl)"]
+impl<V: ?Sized + VisitMutAstPath> VisitMutWithAstPath<V> for swc_atoms::Atom {
+    #[doc = "Calls [VisitMutAstPath`::visit_mut_atom`] with `self`. (Extra impl)"]
     #[inline]
     fn visit_mut_with_ast_path(&mut self, visitor: &mut V, __ast_path: &mut AstKindPath) {
-        <V as VisitMutAstPath>::visit_mut_blocks(visitor, self, __ast_path)
+        <V as VisitMutAstPath>::visit_mut_atom(visitor, self, __ast_path)
+    }
+
+    #[inline]
+    fn visit_mut_children_with_ast_path(&mut self, visitor: &mut V, __ast_path: &mut AstKindPath) {
+        {}
+    }
+}
+#[cfg(any(docsrs, feature = "path"))]
+#[cfg_attr(docsrs, doc(cfg(feature = "path")))]
+impl<V: ?Sized + VisitMutAstPath> VisitMutWithAstPath<V> for Vec<Child> {
+    #[doc = "Calls [VisitMutAstPath`::visit_mut_childs`] with `self`. (Extra impl)"]
+    #[inline]
+    fn visit_mut_with_ast_path(&mut self, visitor: &mut V, __ast_path: &mut AstKindPath) {
+        <V as VisitMutAstPath>::visit_mut_childs(visitor, self, __ast_path)
     }
 
     #[inline]
     fn visit_mut_children_with_ast_path(&mut self, visitor: &mut V, __ast_path: &mut AstKindPath) {
         self.iter_mut().enumerate().for_each(|(__idx, item)| {
             let mut __ast_path = __ast_path.with_index_guard(__idx);
-            <Block as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
+            <Child as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
                 item,
                 visitor,
                 &mut *__ast_path,
@@ -8524,23 +9538,21 @@ impl<V: ?Sized + VisitMutAstPath> VisitMutWithAstPath<V> for Vec<Block> {
 }
 #[cfg(any(docsrs, feature = "path"))]
 #[cfg_attr(docsrs, doc(cfg(feature = "path")))]
-impl<V: ?Sized + VisitMutAstPath> VisitMutWithAstPath<V> for Vec<InlineBlock> {
-    #[doc = "Calls [VisitMutAstPath`::visit_mut_inline_blocks`] with `self`. (Extra impl)"]
+impl<V: ?Sized + VisitMutAstPath> VisitMutWithAstPath<V> for Option<swc_atoms::Atom> {
+    #[doc = "Calls [VisitMutAstPath`::visit_mut_opt_atom`] with `self`. (Extra impl)"]
     #[inline]
     fn visit_mut_with_ast_path(&mut self, visitor: &mut V, __ast_path: &mut AstKindPath) {
-        <V as VisitMutAstPath>::visit_mut_inline_blocks(visitor, self, __ast_path)
+        <V as VisitMutAstPath>::visit_mut_opt_atom(visitor, self, __ast_path)
     }
 
     #[inline]
     fn visit_mut_children_with_ast_path(&mut self, visitor: &mut V, __ast_path: &mut AstKindPath) {
-        self.iter_mut().enumerate().for_each(|(__idx, item)| {
-            let mut __ast_path = __ast_path.with_index_guard(__idx);
-            <InlineBlock as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
-                item,
-                visitor,
-                &mut *__ast_path,
-            )
-        })
+        match self {
+            Some(inner) => <swc_atoms::Atom as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
+                inner, visitor, __ast_path,
+            ),
+            None => {}
+        }
     }
 }
 #[cfg(any(docsrs, feature = "path"))]
@@ -8573,6 +9585,27 @@ impl<V: ?Sized + VisitMutAstPath> VisitMutWithAstPath<V> for String {
 }
 #[cfg(any(docsrs, feature = "path"))]
 #[cfg_attr(docsrs, doc(cfg(feature = "path")))]
+impl<V: ?Sized + VisitMutAstPath> VisitMutWithAstPath<V> for Vec<TextualContent> {
+    #[doc = "Calls [VisitMutAstPath`::visit_mut_textual_contents`] with `self`. (Extra impl)"]
+    #[inline]
+    fn visit_mut_with_ast_path(&mut self, visitor: &mut V, __ast_path: &mut AstKindPath) {
+        <V as VisitMutAstPath>::visit_mut_textual_contents(visitor, self, __ast_path)
+    }
+
+    #[inline]
+    fn visit_mut_children_with_ast_path(&mut self, visitor: &mut V, __ast_path: &mut AstKindPath) {
+        self.iter_mut().enumerate().for_each(|(__idx, item)| {
+            let mut __ast_path = __ast_path.with_index_guard(__idx);
+            <TextualContent as VisitMutWithAstPath<V>>::visit_mut_with_ast_path(
+                item,
+                visitor,
+                &mut *__ast_path,
+            )
+        })
+    }
+}
+#[cfg(any(docsrs, feature = "path"))]
+#[cfg_attr(docsrs, doc(cfg(feature = "path")))]
 impl<V, T> VisitMutWithAstPath<V> for std::boxed::Box<T>
 where
     V: ?Sized + VisitMutAstPath,
@@ -8600,6 +9633,13 @@ where
 }
 #[doc = r" A visitor trait for traversing the AST."]
 pub trait Fold {
+    #[doc = "Visit a node of type `swc_atoms :: Atom`.\n\nBy default, this method calls \
+             [`swc_atoms :: Atom::fold_children_with`]. If you want to recurse, you need to call \
+             it manually."]
+    #[inline]
+    fn fold_atom(&mut self, node: swc_atoms::Atom) -> swc_atoms::Atom {
+        <swc_atoms::Atom as FoldWith<Self>>::fold_children_with(node, self)
+    }
     #[doc = "Visit a node of type `ATXHeading`.\n\nBy default, this method calls \
              [`ATXHeading::fold_children_with`]. If you want to recurse, you need to call it \
              manually."]
@@ -8621,12 +9661,6 @@ pub trait Fold {
     fn fold_blank_line(&mut self, node: BlankLine) -> BlankLine {
         <BlankLine as FoldWith<Self>>::fold_children_with(node, self)
     }
-    #[doc = "Visit a node of type `Block`.\n\nBy default, this method calls \
-             [`Block::fold_children_with`]. If you want to recurse, you need to call it manually."]
-    #[inline]
-    fn fold_block(&mut self, node: Block) -> Block {
-        <Block as FoldWith<Self>>::fold_children_with(node, self)
-    }
     #[doc = "Visit a node of type `BlockQuote`.\n\nBy default, this method calls \
              [`BlockQuote::fold_children_with`]. If you want to recurse, you need to call it \
              manually."]
@@ -8634,11 +9668,17 @@ pub trait Fold {
     fn fold_block_quote(&mut self, node: BlockQuote) -> BlockQuote {
         <BlockQuote as FoldWith<Self>>::fold_children_with(node, self)
     }
-    #[doc = "Visit a node of type `Vec < Block >`.\n\nBy default, this method calls [`Vec < Block \
+    #[doc = "Visit a node of type `Child`.\n\nBy default, this method calls \
+             [`Child::fold_children_with`]. If you want to recurse, you need to call it manually."]
+    #[inline]
+    fn fold_child(&mut self, node: Child) -> Child {
+        <Child as FoldWith<Self>>::fold_children_with(node, self)
+    }
+    #[doc = "Visit a node of type `Vec < Child >`.\n\nBy default, this method calls [`Vec < Child \
              >::fold_children_with`]. If you want to recurse, you need to call it manually."]
     #[inline]
-    fn fold_blocks(&mut self, node: Vec<Block>) -> Vec<Block> {
-        <Vec<Block> as FoldWith<Self>>::fold_children_with(node, self)
+    fn fold_childs(&mut self, node: Vec<Child>) -> Vec<Child> {
+        <Vec<Child> as FoldWith<Self>>::fold_children_with(node, self)
     }
     #[doc = "Visit a node of type `CodeSpan`.\n\nBy default, this method calls \
              [`CodeSpan::fold_children_with`]. If you want to recurse, you need to call it \
@@ -8661,15 +9701,12 @@ pub trait Fold {
     fn fold_document(&mut self, node: Document) -> Document {
         <Document as FoldWith<Self>>::fold_children_with(node, self)
     }
-    #[doc = "Visit a node of type `EmphasisAndStrongEmphasis`.\n\nBy default, this method calls \
-             [`EmphasisAndStrongEmphasis::fold_children_with`]. If you want to recurse, you need \
-             to call it manually."]
+    #[doc = "Visit a node of type `Emphasis`.\n\nBy default, this method calls \
+             [`Emphasis::fold_children_with`]. If you want to recurse, you need to call it \
+             manually."]
     #[inline]
-    fn fold_emphasis_and_strong_emphasis(
-        &mut self,
-        node: EmphasisAndStrongEmphasis,
-    ) -> EmphasisAndStrongEmphasis {
-        <EmphasisAndStrongEmphasis as FoldWith<Self>>::fold_children_with(node, self)
+    fn fold_emphasis(&mut self, node: Emphasis) -> Emphasis {
+        <Emphasis as FoldWith<Self>>::fold_children_with(node, self)
     }
     #[doc = "Visit a node of type `FencedCodeBlock`.\n\nBy default, this method calls \
              [`FencedCodeBlock::fold_children_with`]. If you want to recurse, you need to call it \
@@ -8712,13 +9749,6 @@ pub trait Fold {
     fn fold_inline_block(&mut self, node: InlineBlock) -> InlineBlock {
         <InlineBlock as FoldWith<Self>>::fold_children_with(node, self)
     }
-    #[doc = "Visit a node of type `Vec < InlineBlock >`.\n\nBy default, this method calls [`Vec < \
-             InlineBlock >::fold_children_with`]. If you want to recurse, you need to call it \
-             manually."]
-    #[inline]
-    fn fold_inline_blocks(&mut self, node: Vec<InlineBlock>) -> Vec<InlineBlock> {
-        <Vec<InlineBlock> as FoldWith<Self>>::fold_children_with(node, self)
-    }
     #[doc = "Visit a node of type `LeafBlock`.\n\nBy default, this method calls \
              [`LeafBlock::fold_children_with`]. If you want to recurse, you need to call it \
              manually."]
@@ -8754,6 +9784,13 @@ pub trait Fold {
     #[inline]
     fn fold_list_item(&mut self, node: ListItem) -> ListItem {
         <ListItem as FoldWith<Self>>::fold_children_with(node, self)
+    }
+    #[doc = "Visit a node of type `Option < swc_atoms :: Atom >`.\n\nBy default, this method calls \
+             [`Option < swc_atoms :: Atom >::fold_children_with`]. If you want to recurse, you \
+             need to call it manually."]
+    #[inline]
+    fn fold_opt_atom(&mut self, node: Option<swc_atoms::Atom>) -> Option<swc_atoms::Atom> {
+        <Option<swc_atoms::Atom> as FoldWith<Self>>::fold_children_with(node, self)
     }
     #[doc = "Visit a node of type `Paragraph`.\n\nBy default, this method calls \
              [`Paragraph::fold_children_with`]. If you want to recurse, you need to call it \
@@ -8795,12 +9832,26 @@ pub trait Fold {
     fn fold_string(&mut self, node: String) -> String {
         <String as FoldWith<Self>>::fold_children_with(node, self)
     }
+    #[doc = "Visit a node of type `StrongEmphasis`.\n\nBy default, this method calls \
+             [`StrongEmphasis::fold_children_with`]. If you want to recurse, you need to call it \
+             manually."]
+    #[inline]
+    fn fold_strong_emphasis(&mut self, node: StrongEmphasis) -> StrongEmphasis {
+        <StrongEmphasis as FoldWith<Self>>::fold_children_with(node, self)
+    }
     #[doc = "Visit a node of type `TextualContent`.\n\nBy default, this method calls \
              [`TextualContent::fold_children_with`]. If you want to recurse, you need to call it \
              manually."]
     #[inline]
     fn fold_textual_content(&mut self, node: TextualContent) -> TextualContent {
         <TextualContent as FoldWith<Self>>::fold_children_with(node, self)
+    }
+    #[doc = "Visit a node of type `Vec < TextualContent >`.\n\nBy default, this method calls [`Vec \
+             < TextualContent >::fold_children_with`]. If you want to recurse, you need to call it \
+             manually."]
+    #[inline]
+    fn fold_textual_contents(&mut self, node: Vec<TextualContent>) -> Vec<TextualContent> {
+        <Vec<TextualContent> as FoldWith<Self>>::fold_children_with(node, self)
     }
     #[doc = "Visit a node of type `ThematicBreak`.\n\nBy default, this method calls \
              [`ThematicBreak::fold_children_with`]. If you want to recurse, you need to call it \
@@ -8815,6 +9866,11 @@ where
     V: ?Sized + Fold,
 {
     #[inline]
+    fn fold_atom(&mut self, node: swc_atoms::Atom) -> swc_atoms::Atom {
+        <V as Fold>::fold_atom(&mut **self, node)
+    }
+
+    #[inline]
     fn fold_atx_heading(&mut self, node: ATXHeading) -> ATXHeading {
         <V as Fold>::fold_atx_heading(&mut **self, node)
     }
@@ -8830,18 +9886,18 @@ where
     }
 
     #[inline]
-    fn fold_block(&mut self, node: Block) -> Block {
-        <V as Fold>::fold_block(&mut **self, node)
-    }
-
-    #[inline]
     fn fold_block_quote(&mut self, node: BlockQuote) -> BlockQuote {
         <V as Fold>::fold_block_quote(&mut **self, node)
     }
 
     #[inline]
-    fn fold_blocks(&mut self, node: Vec<Block>) -> Vec<Block> {
-        <V as Fold>::fold_blocks(&mut **self, node)
+    fn fold_child(&mut self, node: Child) -> Child {
+        <V as Fold>::fold_child(&mut **self, node)
+    }
+
+    #[inline]
+    fn fold_childs(&mut self, node: Vec<Child>) -> Vec<Child> {
+        <V as Fold>::fold_childs(&mut **self, node)
     }
 
     #[inline]
@@ -8860,11 +9916,8 @@ where
     }
 
     #[inline]
-    fn fold_emphasis_and_strong_emphasis(
-        &mut self,
-        node: EmphasisAndStrongEmphasis,
-    ) -> EmphasisAndStrongEmphasis {
-        <V as Fold>::fold_emphasis_and_strong_emphasis(&mut **self, node)
+    fn fold_emphasis(&mut self, node: Emphasis) -> Emphasis {
+        <V as Fold>::fold_emphasis(&mut **self, node)
     }
 
     #[inline]
@@ -8898,11 +9951,6 @@ where
     }
 
     #[inline]
-    fn fold_inline_blocks(&mut self, node: Vec<InlineBlock>) -> Vec<InlineBlock> {
-        <V as Fold>::fold_inline_blocks(&mut **self, node)
-    }
-
-    #[inline]
     fn fold_leaf_block(&mut self, node: LeafBlock) -> LeafBlock {
         <V as Fold>::fold_leaf_block(&mut **self, node)
     }
@@ -8928,6 +9976,11 @@ where
     #[inline]
     fn fold_list_item(&mut self, node: ListItem) -> ListItem {
         <V as Fold>::fold_list_item(&mut **self, node)
+    }
+
+    #[inline]
+    fn fold_opt_atom(&mut self, node: Option<swc_atoms::Atom>) -> Option<swc_atoms::Atom> {
+        <V as Fold>::fold_opt_atom(&mut **self, node)
     }
 
     #[inline]
@@ -8961,8 +10014,18 @@ where
     }
 
     #[inline]
+    fn fold_strong_emphasis(&mut self, node: StrongEmphasis) -> StrongEmphasis {
+        <V as Fold>::fold_strong_emphasis(&mut **self, node)
+    }
+
+    #[inline]
     fn fold_textual_content(&mut self, node: TextualContent) -> TextualContent {
         <V as Fold>::fold_textual_content(&mut **self, node)
+    }
+
+    #[inline]
+    fn fold_textual_contents(&mut self, node: Vec<TextualContent>) -> Vec<TextualContent> {
+        <V as Fold>::fold_textual_contents(&mut **self, node)
     }
 
     #[inline]
@@ -8975,6 +10038,11 @@ where
     V: ?Sized + Fold,
 {
     #[inline]
+    fn fold_atom(&mut self, node: swc_atoms::Atom) -> swc_atoms::Atom {
+        <V as Fold>::fold_atom(&mut **self, node)
+    }
+
+    #[inline]
     fn fold_atx_heading(&mut self, node: ATXHeading) -> ATXHeading {
         <V as Fold>::fold_atx_heading(&mut **self, node)
     }
@@ -8990,18 +10058,18 @@ where
     }
 
     #[inline]
-    fn fold_block(&mut self, node: Block) -> Block {
-        <V as Fold>::fold_block(&mut **self, node)
-    }
-
-    #[inline]
     fn fold_block_quote(&mut self, node: BlockQuote) -> BlockQuote {
         <V as Fold>::fold_block_quote(&mut **self, node)
     }
 
     #[inline]
-    fn fold_blocks(&mut self, node: Vec<Block>) -> Vec<Block> {
-        <V as Fold>::fold_blocks(&mut **self, node)
+    fn fold_child(&mut self, node: Child) -> Child {
+        <V as Fold>::fold_child(&mut **self, node)
+    }
+
+    #[inline]
+    fn fold_childs(&mut self, node: Vec<Child>) -> Vec<Child> {
+        <V as Fold>::fold_childs(&mut **self, node)
     }
 
     #[inline]
@@ -9020,11 +10088,8 @@ where
     }
 
     #[inline]
-    fn fold_emphasis_and_strong_emphasis(
-        &mut self,
-        node: EmphasisAndStrongEmphasis,
-    ) -> EmphasisAndStrongEmphasis {
-        <V as Fold>::fold_emphasis_and_strong_emphasis(&mut **self, node)
+    fn fold_emphasis(&mut self, node: Emphasis) -> Emphasis {
+        <V as Fold>::fold_emphasis(&mut **self, node)
     }
 
     #[inline]
@@ -9058,11 +10123,6 @@ where
     }
 
     #[inline]
-    fn fold_inline_blocks(&mut self, node: Vec<InlineBlock>) -> Vec<InlineBlock> {
-        <V as Fold>::fold_inline_blocks(&mut **self, node)
-    }
-
-    #[inline]
     fn fold_leaf_block(&mut self, node: LeafBlock) -> LeafBlock {
         <V as Fold>::fold_leaf_block(&mut **self, node)
     }
@@ -9088,6 +10148,11 @@ where
     #[inline]
     fn fold_list_item(&mut self, node: ListItem) -> ListItem {
         <V as Fold>::fold_list_item(&mut **self, node)
+    }
+
+    #[inline]
+    fn fold_opt_atom(&mut self, node: Option<swc_atoms::Atom>) -> Option<swc_atoms::Atom> {
+        <V as Fold>::fold_opt_atom(&mut **self, node)
     }
 
     #[inline]
@@ -9121,8 +10186,18 @@ where
     }
 
     #[inline]
+    fn fold_strong_emphasis(&mut self, node: StrongEmphasis) -> StrongEmphasis {
+        <V as Fold>::fold_strong_emphasis(&mut **self, node)
+    }
+
+    #[inline]
     fn fold_textual_content(&mut self, node: TextualContent) -> TextualContent {
         <V as Fold>::fold_textual_content(&mut **self, node)
+    }
+
+    #[inline]
+    fn fold_textual_contents(&mut self, node: Vec<TextualContent>) -> Vec<TextualContent> {
+        <V as Fold>::fold_textual_contents(&mut **self, node)
     }
 
     #[inline]
@@ -9135,6 +10210,14 @@ where
     A: Fold,
     B: Fold,
 {
+    #[inline]
+    fn fold_atom(&mut self, node: swc_atoms::Atom) -> swc_atoms::Atom {
+        match self {
+            swc_visit::Either::Left(visitor) => Fold::fold_atom(visitor, node),
+            swc_visit::Either::Right(visitor) => Fold::fold_atom(visitor, node),
+        }
+    }
+
     #[inline]
     fn fold_atx_heading(&mut self, node: ATXHeading) -> ATXHeading {
         match self {
@@ -9160,14 +10243,6 @@ where
     }
 
     #[inline]
-    fn fold_block(&mut self, node: Block) -> Block {
-        match self {
-            swc_visit::Either::Left(visitor) => Fold::fold_block(visitor, node),
-            swc_visit::Either::Right(visitor) => Fold::fold_block(visitor, node),
-        }
-    }
-
-    #[inline]
     fn fold_block_quote(&mut self, node: BlockQuote) -> BlockQuote {
         match self {
             swc_visit::Either::Left(visitor) => Fold::fold_block_quote(visitor, node),
@@ -9176,10 +10251,18 @@ where
     }
 
     #[inline]
-    fn fold_blocks(&mut self, node: Vec<Block>) -> Vec<Block> {
+    fn fold_child(&mut self, node: Child) -> Child {
         match self {
-            swc_visit::Either::Left(visitor) => Fold::fold_blocks(visitor, node),
-            swc_visit::Either::Right(visitor) => Fold::fold_blocks(visitor, node),
+            swc_visit::Either::Left(visitor) => Fold::fold_child(visitor, node),
+            swc_visit::Either::Right(visitor) => Fold::fold_child(visitor, node),
+        }
+    }
+
+    #[inline]
+    fn fold_childs(&mut self, node: Vec<Child>) -> Vec<Child> {
+        match self {
+            swc_visit::Either::Left(visitor) => Fold::fold_childs(visitor, node),
+            swc_visit::Either::Right(visitor) => Fold::fold_childs(visitor, node),
         }
     }
 
@@ -9208,17 +10291,10 @@ where
     }
 
     #[inline]
-    fn fold_emphasis_and_strong_emphasis(
-        &mut self,
-        node: EmphasisAndStrongEmphasis,
-    ) -> EmphasisAndStrongEmphasis {
+    fn fold_emphasis(&mut self, node: Emphasis) -> Emphasis {
         match self {
-            swc_visit::Either::Left(visitor) => {
-                Fold::fold_emphasis_and_strong_emphasis(visitor, node)
-            }
-            swc_visit::Either::Right(visitor) => {
-                Fold::fold_emphasis_and_strong_emphasis(visitor, node)
-            }
+            swc_visit::Either::Left(visitor) => Fold::fold_emphasis(visitor, node),
+            swc_visit::Either::Right(visitor) => Fold::fold_emphasis(visitor, node),
         }
     }
 
@@ -9271,14 +10347,6 @@ where
     }
 
     #[inline]
-    fn fold_inline_blocks(&mut self, node: Vec<InlineBlock>) -> Vec<InlineBlock> {
-        match self {
-            swc_visit::Either::Left(visitor) => Fold::fold_inline_blocks(visitor, node),
-            swc_visit::Either::Right(visitor) => Fold::fold_inline_blocks(visitor, node),
-        }
-    }
-
-    #[inline]
     fn fold_leaf_block(&mut self, node: LeafBlock) -> LeafBlock {
         match self {
             swc_visit::Either::Left(visitor) => Fold::fold_leaf_block(visitor, node),
@@ -9320,6 +10388,14 @@ where
         match self {
             swc_visit::Either::Left(visitor) => Fold::fold_list_item(visitor, node),
             swc_visit::Either::Right(visitor) => Fold::fold_list_item(visitor, node),
+        }
+    }
+
+    #[inline]
+    fn fold_opt_atom(&mut self, node: Option<swc_atoms::Atom>) -> Option<swc_atoms::Atom> {
+        match self {
+            swc_visit::Either::Left(visitor) => Fold::fold_opt_atom(visitor, node),
+            swc_visit::Either::Right(visitor) => Fold::fold_opt_atom(visitor, node),
         }
     }
 
@@ -9372,10 +10448,26 @@ where
     }
 
     #[inline]
+    fn fold_strong_emphasis(&mut self, node: StrongEmphasis) -> StrongEmphasis {
+        match self {
+            swc_visit::Either::Left(visitor) => Fold::fold_strong_emphasis(visitor, node),
+            swc_visit::Either::Right(visitor) => Fold::fold_strong_emphasis(visitor, node),
+        }
+    }
+
+    #[inline]
     fn fold_textual_content(&mut self, node: TextualContent) -> TextualContent {
         match self {
             swc_visit::Either::Left(visitor) => Fold::fold_textual_content(visitor, node),
             swc_visit::Either::Right(visitor) => Fold::fold_textual_content(visitor, node),
+        }
+    }
+
+    #[inline]
+    fn fold_textual_contents(&mut self, node: Vec<TextualContent>) -> Vec<TextualContent> {
+        match self {
+            swc_visit::Either::Left(visitor) => Fold::fold_textual_contents(visitor, node),
+            swc_visit::Either::Right(visitor) => Fold::fold_textual_contents(visitor, node),
         }
     }
 
@@ -9391,6 +10483,15 @@ impl<V> Fold for ::swc_visit::Optional<V>
 where
     V: Fold,
 {
+    #[inline]
+    fn fold_atom(&mut self, node: swc_atoms::Atom) -> swc_atoms::Atom {
+        if self.enabled {
+            <V as Fold>::fold_atom(&mut self.visitor, node)
+        } else {
+            node
+        }
+    }
+
     #[inline]
     fn fold_atx_heading(&mut self, node: ATXHeading) -> ATXHeading {
         if self.enabled {
@@ -9419,15 +10520,6 @@ where
     }
 
     #[inline]
-    fn fold_block(&mut self, node: Block) -> Block {
-        if self.enabled {
-            <V as Fold>::fold_block(&mut self.visitor, node)
-        } else {
-            node
-        }
-    }
-
-    #[inline]
     fn fold_block_quote(&mut self, node: BlockQuote) -> BlockQuote {
         if self.enabled {
             <V as Fold>::fold_block_quote(&mut self.visitor, node)
@@ -9437,9 +10529,18 @@ where
     }
 
     #[inline]
-    fn fold_blocks(&mut self, node: Vec<Block>) -> Vec<Block> {
+    fn fold_child(&mut self, node: Child) -> Child {
         if self.enabled {
-            <V as Fold>::fold_blocks(&mut self.visitor, node)
+            <V as Fold>::fold_child(&mut self.visitor, node)
+        } else {
+            node
+        }
+    }
+
+    #[inline]
+    fn fold_childs(&mut self, node: Vec<Child>) -> Vec<Child> {
+        if self.enabled {
+            <V as Fold>::fold_childs(&mut self.visitor, node)
         } else {
             node
         }
@@ -9473,12 +10574,9 @@ where
     }
 
     #[inline]
-    fn fold_emphasis_and_strong_emphasis(
-        &mut self,
-        node: EmphasisAndStrongEmphasis,
-    ) -> EmphasisAndStrongEmphasis {
+    fn fold_emphasis(&mut self, node: Emphasis) -> Emphasis {
         if self.enabled {
-            <V as Fold>::fold_emphasis_and_strong_emphasis(&mut self.visitor, node)
+            <V as Fold>::fold_emphasis(&mut self.visitor, node)
         } else {
             node
         }
@@ -9539,15 +10637,6 @@ where
     }
 
     #[inline]
-    fn fold_inline_blocks(&mut self, node: Vec<InlineBlock>) -> Vec<InlineBlock> {
-        if self.enabled {
-            <V as Fold>::fold_inline_blocks(&mut self.visitor, node)
-        } else {
-            node
-        }
-    }
-
-    #[inline]
     fn fold_leaf_block(&mut self, node: LeafBlock) -> LeafBlock {
         if self.enabled {
             <V as Fold>::fold_leaf_block(&mut self.visitor, node)
@@ -9590,6 +10679,15 @@ where
     fn fold_list_item(&mut self, node: ListItem) -> ListItem {
         if self.enabled {
             <V as Fold>::fold_list_item(&mut self.visitor, node)
+        } else {
+            node
+        }
+    }
+
+    #[inline]
+    fn fold_opt_atom(&mut self, node: Option<swc_atoms::Atom>) -> Option<swc_atoms::Atom> {
+        if self.enabled {
+            <V as Fold>::fold_opt_atom(&mut self.visitor, node)
         } else {
             node
         }
@@ -9650,9 +10748,27 @@ where
     }
 
     #[inline]
+    fn fold_strong_emphasis(&mut self, node: StrongEmphasis) -> StrongEmphasis {
+        if self.enabled {
+            <V as Fold>::fold_strong_emphasis(&mut self.visitor, node)
+        } else {
+            node
+        }
+    }
+
+    #[inline]
     fn fold_textual_content(&mut self, node: TextualContent) -> TextualContent {
         if self.enabled {
             <V as Fold>::fold_textual_content(&mut self.visitor, node)
+        } else {
+            node
+        }
+    }
+
+    #[inline]
+    fn fold_textual_contents(&mut self, node: Vec<TextualContent>) -> Vec<TextualContent> {
+        if self.enabled {
+            <V as Fold>::fold_textual_contents(&mut self.visitor, node)
         } else {
             node
         }
@@ -9688,7 +10804,7 @@ impl<V: ?Sized + Fold> FoldWith<V> for ATXHeading {
                 children,
             } => {
                 let span = { <swc_common::Span as FoldWith<V>>::fold_with(span, visitor) };
-                let children = { <Vec<InlineBlock> as FoldWith<V>>::fold_with(children, visitor) };
+                let children = { <Vec<Child> as FoldWith<V>>::fold_with(children, visitor) };
                 ATXHeading {
                     span,
                     level,
@@ -9728,29 +10844,6 @@ impl<V: ?Sized + Fold> FoldWith<V> for BlankLine {
         }
     }
 }
-impl<V: ?Sized + Fold> FoldWith<V> for Block {
-    #[doc = "Calls [Fold`::fold_block`] with `self`."]
-    fn fold_with(self, visitor: &mut V) -> Self {
-        <V as Fold>::fold_block(visitor, self)
-    }
-
-    fn fold_children_with(self, visitor: &mut V) -> Self {
-        match self {
-            Block::Leaf { 0: _field_0 } => {
-                let _field_0 = <LeafBlock as FoldWith<V>>::fold_with(_field_0, visitor);
-                Block::Leaf { 0: _field_0 }
-            }
-            Block::Container { 0: _field_0 } => {
-                let _field_0 = <ContainerBlock as FoldWith<V>>::fold_with(_field_0, visitor);
-                Block::Container { 0: _field_0 }
-            }
-            Block::Inline { 0: _field_0 } => {
-                let _field_0 = <InlineBlock as FoldWith<V>>::fold_with(_field_0, visitor);
-                Block::Inline { 0: _field_0 }
-            }
-        }
-    }
-}
 impl<V: ?Sized + Fold> FoldWith<V> for BlockQuote {
     #[doc = "Calls [Fold`::fold_block_quote`] with `self`."]
     fn fold_with(self, visitor: &mut V) -> Self {
@@ -9759,9 +10852,33 @@ impl<V: ?Sized + Fold> FoldWith<V> for BlockQuote {
 
     fn fold_children_with(self, visitor: &mut V) -> Self {
         match self {
-            BlockQuote { span } => {
+            BlockQuote { span, children } => {
                 let span = { <swc_common::Span as FoldWith<V>>::fold_with(span, visitor) };
-                BlockQuote { span }
+                let children = { <Vec<Child> as FoldWith<V>>::fold_with(children, visitor) };
+                BlockQuote { span, children }
+            }
+        }
+    }
+}
+impl<V: ?Sized + Fold> FoldWith<V> for Child {
+    #[doc = "Calls [Fold`::fold_child`] with `self`."]
+    fn fold_with(self, visitor: &mut V) -> Self {
+        <V as Fold>::fold_child(visitor, self)
+    }
+
+    fn fold_children_with(self, visitor: &mut V) -> Self {
+        match self {
+            Child::Leaf { 0: _field_0 } => {
+                let _field_0 = <LeafBlock as FoldWith<V>>::fold_with(_field_0, visitor);
+                Child::Leaf { 0: _field_0 }
+            }
+            Child::Container { 0: _field_0 } => {
+                let _field_0 = <ContainerBlock as FoldWith<V>>::fold_with(_field_0, visitor);
+                Child::Container { 0: _field_0 }
+            }
+            Child::Inline { 0: _field_0 } => {
+                let _field_0 = <InlineBlock as FoldWith<V>>::fold_with(_field_0, visitor);
+                Child::Inline { 0: _field_0 }
             }
         }
     }
@@ -9819,7 +10936,7 @@ impl<V: ?Sized + Fold> FoldWith<V> for Document {
                 children,
             } => {
                 let span = { <swc_common::Span as FoldWith<V>>::fold_with(span, visitor) };
-                let children = { <Vec<Block> as FoldWith<V>>::fold_with(children, visitor) };
+                let children = { <Vec<Child> as FoldWith<V>>::fold_with(children, visitor) };
                 Document {
                     span,
                     mdx,
@@ -9830,17 +10947,18 @@ impl<V: ?Sized + Fold> FoldWith<V> for Document {
         }
     }
 }
-impl<V: ?Sized + Fold> FoldWith<V> for EmphasisAndStrongEmphasis {
-    #[doc = "Calls [Fold`::fold_emphasis_and_strong_emphasis`] with `self`."]
+impl<V: ?Sized + Fold> FoldWith<V> for Emphasis {
+    #[doc = "Calls [Fold`::fold_emphasis`] with `self`."]
     fn fold_with(self, visitor: &mut V) -> Self {
-        <V as Fold>::fold_emphasis_and_strong_emphasis(visitor, self)
+        <V as Fold>::fold_emphasis(visitor, self)
     }
 
     fn fold_children_with(self, visitor: &mut V) -> Self {
         match self {
-            EmphasisAndStrongEmphasis { span } => {
+            Emphasis { span, content } => {
                 let span = { <swc_common::Span as FoldWith<V>>::fold_with(span, visitor) };
-                EmphasisAndStrongEmphasis { span }
+                let content = { <Vec<TextualContent> as FoldWith<V>>::fold_with(content, visitor) };
+                Emphasis { span, content }
             }
         }
     }
@@ -9853,9 +10971,11 @@ impl<V: ?Sized + Fold> FoldWith<V> for FencedCodeBlock {
 
     fn fold_children_with(self, visitor: &mut V) -> Self {
         match self {
-            FencedCodeBlock { span } => {
+            FencedCodeBlock { span, info, code } => {
                 let span = { <swc_common::Span as FoldWith<V>>::fold_with(span, visitor) };
-                FencedCodeBlock { span }
+                let info = { <Option<swc_atoms::Atom> as FoldWith<V>>::fold_with(info, visitor) };
+                let code = { <swc_atoms::Atom as FoldWith<V>>::fold_with(code, visitor) };
+                FencedCodeBlock { span, info, code }
             }
         }
     }
@@ -9868,9 +10988,10 @@ impl<V: ?Sized + Fold> FoldWith<V> for HTMLBlock {
 
     fn fold_children_with(self, visitor: &mut V) -> Self {
         match self {
-            HTMLBlock { span } => {
+            HTMLBlock { span, html } => {
                 let span = { <swc_common::Span as FoldWith<V>>::fold_with(span, visitor) };
-                HTMLBlock { span }
+                let html = { <swc_atoms::Atom as FoldWith<V>>::fold_with(html, visitor) };
+                HTMLBlock { span, html }
             }
         }
     }
@@ -9913,9 +11034,10 @@ impl<V: ?Sized + Fold> FoldWith<V> for IndentedCodeBlock {
 
     fn fold_children_with(self, visitor: &mut V) -> Self {
         match self {
-            IndentedCodeBlock { span } => {
+            IndentedCodeBlock { span, code } => {
                 let span = { <swc_common::Span as FoldWith<V>>::fold_with(span, visitor) };
-                IndentedCodeBlock { span }
+                let code = { <swc_atoms::Atom as FoldWith<V>>::fold_with(code, visitor) };
+                IndentedCodeBlock { span, code }
             }
         }
     }
@@ -9932,10 +11054,13 @@ impl<V: ?Sized + Fold> FoldWith<V> for InlineBlock {
                 let _field_0 = <CodeSpan as FoldWith<V>>::fold_with(_field_0, visitor);
                 InlineBlock::CodeSpan { 0: _field_0 }
             }
-            InlineBlock::EmphasisAndStrongEmphasis { 0: _field_0 } => {
-                let _field_0 =
-                    <EmphasisAndStrongEmphasis as FoldWith<V>>::fold_with(_field_0, visitor);
-                InlineBlock::EmphasisAndStrongEmphasis { 0: _field_0 }
+            InlineBlock::Emphasis { 0: _field_0 } => {
+                let _field_0 = <Emphasis as FoldWith<V>>::fold_with(_field_0, visitor);
+                InlineBlock::Emphasis { 0: _field_0 }
+            }
+            InlineBlock::StrongEmphasis { 0: _field_0 } => {
+                let _field_0 = <StrongEmphasis as FoldWith<V>>::fold_with(_field_0, visitor);
+                InlineBlock::StrongEmphasis { 0: _field_0 }
             }
             InlineBlock::Link { 0: _field_0 } => {
                 let _field_0 = <Link as FoldWith<V>>::fold_with(_field_0, visitor);
@@ -10039,9 +11164,23 @@ impl<V: ?Sized + Fold> FoldWith<V> for LinkReferenceDefinition {
 
     fn fold_children_with(self, visitor: &mut V) -> Self {
         match self {
-            LinkReferenceDefinition { span } => {
+            LinkReferenceDefinition {
+                span,
+                label,
+                destination,
+                title,
+            } => {
                 let span = { <swc_common::Span as FoldWith<V>>::fold_with(span, visitor) };
-                LinkReferenceDefinition { span }
+                let label = { <swc_atoms::Atom as FoldWith<V>>::fold_with(label, visitor) };
+                let destination =
+                    { <swc_atoms::Atom as FoldWith<V>>::fold_with(destination, visitor) };
+                let title = { <Option<swc_atoms::Atom> as FoldWith<V>>::fold_with(title, visitor) };
+                LinkReferenceDefinition {
+                    span,
+                    label,
+                    destination,
+                    title,
+                }
             }
         }
     }
@@ -10086,7 +11225,7 @@ impl<V: ?Sized + Fold> FoldWith<V> for Paragraph {
         match self {
             Paragraph { span, children } => {
                 let span = { <swc_common::Span as FoldWith<V>>::fold_with(span, visitor) };
-                let children = { <Vec<InlineBlock> as FoldWith<V>>::fold_with(children, visitor) };
+                let children = { <Vec<Child> as FoldWith<V>>::fold_with(children, visitor) };
                 Paragraph { span, children }
             }
         }
@@ -10121,7 +11260,7 @@ impl<V: ?Sized + Fold> FoldWith<V> for SetextHeading {
                 children,
             } => {
                 let span = { <swc_common::Span as FoldWith<V>>::fold_with(span, visitor) };
-                let children = { <Vec<InlineBlock> as FoldWith<V>>::fold_with(children, visitor) };
+                let children = { <Vec<Child> as FoldWith<V>>::fold_with(children, visitor) };
                 SetextHeading {
                     span,
                     level,
@@ -10142,6 +11281,22 @@ impl<V: ?Sized + Fold> FoldWith<V> for SoftLineBreak {
             SoftLineBreak { span } => {
                 let span = { <swc_common::Span as FoldWith<V>>::fold_with(span, visitor) };
                 SoftLineBreak { span }
+            }
+        }
+    }
+}
+impl<V: ?Sized + Fold> FoldWith<V> for StrongEmphasis {
+    #[doc = "Calls [Fold`::fold_strong_emphasis`] with `self`."]
+    fn fold_with(self, visitor: &mut V) -> Self {
+        <V as Fold>::fold_strong_emphasis(visitor, self)
+    }
+
+    fn fold_children_with(self, visitor: &mut V) -> Self {
+        match self {
+            StrongEmphasis { span, content } => {
+                let span = { <swc_common::Span as FoldWith<V>>::fold_with(span, visitor) };
+                let content = { <Vec<TextualContent> as FoldWith<V>>::fold_with(content, visitor) };
+                StrongEmphasis { span, content }
             }
         }
     }
@@ -10177,32 +11332,42 @@ impl<V: ?Sized + Fold> FoldWith<V> for ThematicBreak {
         }
     }
 }
-impl<V: ?Sized + Fold> FoldWith<V> for Vec<Block> {
-    #[doc = "Calls [Fold`::fold_blocks`] with `self`. (Extra impl)"]
+impl<V: ?Sized + Fold> FoldWith<V> for swc_atoms::Atom {
+    #[doc = "Calls [Fold`::fold_atom`] with `self`. (Extra impl)"]
     #[inline]
     fn fold_with(self, visitor: &mut V) -> Self {
-        <V as Fold>::fold_blocks(visitor, self)
+        <V as Fold>::fold_atom(visitor, self)
+    }
+
+    #[inline]
+    fn fold_children_with(self, visitor: &mut V) -> Self {
+        self
+    }
+}
+impl<V: ?Sized + Fold> FoldWith<V> for Vec<Child> {
+    #[doc = "Calls [Fold`::fold_childs`] with `self`. (Extra impl)"]
+    #[inline]
+    fn fold_with(self, visitor: &mut V) -> Self {
+        <V as Fold>::fold_childs(visitor, self)
     }
 
     #[inline]
     fn fold_children_with(self, visitor: &mut V) -> Self {
         swc_visit::util::move_map::MoveMap::move_map(self, |item| {
-            <Block as FoldWith<V>>::fold_with(item, visitor)
+            <Child as FoldWith<V>>::fold_with(item, visitor)
         })
     }
 }
-impl<V: ?Sized + Fold> FoldWith<V> for Vec<InlineBlock> {
-    #[doc = "Calls [Fold`::fold_inline_blocks`] with `self`. (Extra impl)"]
+impl<V: ?Sized + Fold> FoldWith<V> for Option<swc_atoms::Atom> {
+    #[doc = "Calls [Fold`::fold_opt_atom`] with `self`. (Extra impl)"]
     #[inline]
     fn fold_with(self, visitor: &mut V) -> Self {
-        <V as Fold>::fold_inline_blocks(visitor, self)
+        <V as Fold>::fold_opt_atom(visitor, self)
     }
 
     #[inline]
     fn fold_children_with(self, visitor: &mut V) -> Self {
-        swc_visit::util::move_map::MoveMap::move_map(self, |item| {
-            <InlineBlock as FoldWith<V>>::fold_with(item, visitor)
-        })
+        self.map(|inner| <swc_atoms::Atom as FoldWith<V>>::fold_with(inner, visitor))
     }
 }
 impl<V: ?Sized + Fold> FoldWith<V> for swc_common::Span {
@@ -10229,6 +11394,20 @@ impl<V: ?Sized + Fold> FoldWith<V> for String {
         self
     }
 }
+impl<V: ?Sized + Fold> FoldWith<V> for Vec<TextualContent> {
+    #[doc = "Calls [Fold`::fold_textual_contents`] with `self`. (Extra impl)"]
+    #[inline]
+    fn fold_with(self, visitor: &mut V) -> Self {
+        <V as Fold>::fold_textual_contents(visitor, self)
+    }
+
+    #[inline]
+    fn fold_children_with(self, visitor: &mut V) -> Self {
+        swc_visit::util::move_map::MoveMap::move_map(self, |item| {
+            <TextualContent as FoldWith<V>>::fold_with(item, visitor)
+        })
+    }
+}
 impl<V, T> FoldWith<V> for std::boxed::Box<T>
 where
     V: ?Sized + Fold,
@@ -10250,6 +11429,19 @@ where
 #[cfg(any(docsrs, feature = "path"))]
 #[cfg_attr(docsrs, doc(cfg(feature = "path")))]
 pub trait FoldAstPath {
+    #[doc = "Visit a node of type `swc_atoms :: Atom`.\n\nBy default, this method calls \
+             [`swc_atoms :: Atom::fold_children_with_ast_path`]. If you want to recurse, you need \
+             to call it manually."]
+    #[inline]
+    fn fold_atom(
+        &mut self,
+        node: swc_atoms::Atom,
+        __ast_path: &mut AstKindPath,
+    ) -> swc_atoms::Atom {
+        <swc_atoms::Atom as FoldWithAstPath<Self>>::fold_children_with_ast_path(
+            node, self, __ast_path,
+        )
+    }
     #[doc = "Visit a node of type `ATXHeading`.\n\nBy default, this method calls \
              [`ATXHeading::fold_children_with_ast_path`]. If you want to recurse, you need to call \
              it manually."]
@@ -10271,13 +11463,6 @@ pub trait FoldAstPath {
     fn fold_blank_line(&mut self, node: BlankLine, __ast_path: &mut AstKindPath) -> BlankLine {
         <BlankLine as FoldWithAstPath<Self>>::fold_children_with_ast_path(node, self, __ast_path)
     }
-    #[doc = "Visit a node of type `Block`.\n\nBy default, this method calls \
-             [`Block::fold_children_with_ast_path`]. If you want to recurse, you need to call it \
-             manually."]
-    #[inline]
-    fn fold_block(&mut self, node: Block, __ast_path: &mut AstKindPath) -> Block {
-        <Block as FoldWithAstPath<Self>>::fold_children_with_ast_path(node, self, __ast_path)
-    }
     #[doc = "Visit a node of type `BlockQuote`.\n\nBy default, this method calls \
              [`BlockQuote::fold_children_with_ast_path`]. If you want to recurse, you need to call \
              it manually."]
@@ -10285,12 +11470,19 @@ pub trait FoldAstPath {
     fn fold_block_quote(&mut self, node: BlockQuote, __ast_path: &mut AstKindPath) -> BlockQuote {
         <BlockQuote as FoldWithAstPath<Self>>::fold_children_with_ast_path(node, self, __ast_path)
     }
-    #[doc = "Visit a node of type `Vec < Block >`.\n\nBy default, this method calls [`Vec < Block \
+    #[doc = "Visit a node of type `Child`.\n\nBy default, this method calls \
+             [`Child::fold_children_with_ast_path`]. If you want to recurse, you need to call it \
+             manually."]
+    #[inline]
+    fn fold_child(&mut self, node: Child, __ast_path: &mut AstKindPath) -> Child {
+        <Child as FoldWithAstPath<Self>>::fold_children_with_ast_path(node, self, __ast_path)
+    }
+    #[doc = "Visit a node of type `Vec < Child >`.\n\nBy default, this method calls [`Vec < Child \
              >::fold_children_with_ast_path`]. If you want to recurse, you need to call it \
              manually."]
     #[inline]
-    fn fold_blocks(&mut self, node: Vec<Block>, __ast_path: &mut AstKindPath) -> Vec<Block> {
-        <Vec<Block> as FoldWithAstPath<Self>>::fold_children_with_ast_path(node, self, __ast_path)
+    fn fold_childs(&mut self, node: Vec<Child>, __ast_path: &mut AstKindPath) -> Vec<Child> {
+        <Vec<Child> as FoldWithAstPath<Self>>::fold_children_with_ast_path(node, self, __ast_path)
     }
     #[doc = "Visit a node of type `CodeSpan`.\n\nBy default, this method calls \
              [`CodeSpan::fold_children_with_ast_path`]. If you want to recurse, you need to call \
@@ -10319,18 +11511,12 @@ pub trait FoldAstPath {
     fn fold_document(&mut self, node: Document, __ast_path: &mut AstKindPath) -> Document {
         <Document as FoldWithAstPath<Self>>::fold_children_with_ast_path(node, self, __ast_path)
     }
-    #[doc = "Visit a node of type `EmphasisAndStrongEmphasis`.\n\nBy default, this method calls \
-             [`EmphasisAndStrongEmphasis::fold_children_with_ast_path`]. If you want to recurse, \
-             you need to call it manually."]
+    #[doc = "Visit a node of type `Emphasis`.\n\nBy default, this method calls \
+             [`Emphasis::fold_children_with_ast_path`]. If you want to recurse, you need to call \
+             it manually."]
     #[inline]
-    fn fold_emphasis_and_strong_emphasis(
-        &mut self,
-        node: EmphasisAndStrongEmphasis,
-        __ast_path: &mut AstKindPath,
-    ) -> EmphasisAndStrongEmphasis {
-        <EmphasisAndStrongEmphasis as FoldWithAstPath<Self>>::fold_children_with_ast_path(
-            node, self, __ast_path,
-        )
+    fn fold_emphasis(&mut self, node: Emphasis, __ast_path: &mut AstKindPath) -> Emphasis {
+        <Emphasis as FoldWithAstPath<Self>>::fold_children_with_ast_path(node, self, __ast_path)
     }
     #[doc = "Visit a node of type `FencedCodeBlock`.\n\nBy default, this method calls \
              [`FencedCodeBlock::fold_children_with_ast_path`]. If you want to recurse, you need to \
@@ -10396,19 +11582,6 @@ pub trait FoldAstPath {
     ) -> InlineBlock {
         <InlineBlock as FoldWithAstPath<Self>>::fold_children_with_ast_path(node, self, __ast_path)
     }
-    #[doc = "Visit a node of type `Vec < InlineBlock >`.\n\nBy default, this method calls [`Vec < \
-             InlineBlock >::fold_children_with_ast_path`]. If you want to recurse, you need to \
-             call it manually."]
-    #[inline]
-    fn fold_inline_blocks(
-        &mut self,
-        node: Vec<InlineBlock>,
-        __ast_path: &mut AstKindPath,
-    ) -> Vec<InlineBlock> {
-        <Vec<InlineBlock> as FoldWithAstPath<Self>>::fold_children_with_ast_path(
-            node, self, __ast_path,
-        )
-    }
     #[doc = "Visit a node of type `LeafBlock`.\n\nBy default, this method calls \
              [`LeafBlock::fold_children_with_ast_path`]. If you want to recurse, you need to call \
              it manually."]
@@ -10449,6 +11622,19 @@ pub trait FoldAstPath {
     #[inline]
     fn fold_list_item(&mut self, node: ListItem, __ast_path: &mut AstKindPath) -> ListItem {
         <ListItem as FoldWithAstPath<Self>>::fold_children_with_ast_path(node, self, __ast_path)
+    }
+    #[doc = "Visit a node of type `Option < swc_atoms :: Atom >`.\n\nBy default, this method calls \
+             [`Option < swc_atoms :: Atom >::fold_children_with_ast_path`]. If you want to \
+             recurse, you need to call it manually."]
+    #[inline]
+    fn fold_opt_atom(
+        &mut self,
+        node: Option<swc_atoms::Atom>,
+        __ast_path: &mut AstKindPath,
+    ) -> Option<swc_atoms::Atom> {
+        <Option<swc_atoms::Atom> as FoldWithAstPath<Self>>::fold_children_with_ast_path(
+            node, self, __ast_path,
+        )
     }
     #[doc = "Visit a node of type `Paragraph`.\n\nBy default, this method calls \
              [`Paragraph::fold_children_with_ast_path`]. If you want to recurse, you need to call \
@@ -10510,6 +11696,19 @@ pub trait FoldAstPath {
     fn fold_string(&mut self, node: String, __ast_path: &mut AstKindPath) -> String {
         <String as FoldWithAstPath<Self>>::fold_children_with_ast_path(node, self, __ast_path)
     }
+    #[doc = "Visit a node of type `StrongEmphasis`.\n\nBy default, this method calls \
+             [`StrongEmphasis::fold_children_with_ast_path`]. If you want to recurse, you need to \
+             call it manually."]
+    #[inline]
+    fn fold_strong_emphasis(
+        &mut self,
+        node: StrongEmphasis,
+        __ast_path: &mut AstKindPath,
+    ) -> StrongEmphasis {
+        <StrongEmphasis as FoldWithAstPath<Self>>::fold_children_with_ast_path(
+            node, self, __ast_path,
+        )
+    }
     #[doc = "Visit a node of type `TextualContent`.\n\nBy default, this method calls \
              [`TextualContent::fold_children_with_ast_path`]. If you want to recurse, you need to \
              call it manually."]
@@ -10520,6 +11719,19 @@ pub trait FoldAstPath {
         __ast_path: &mut AstKindPath,
     ) -> TextualContent {
         <TextualContent as FoldWithAstPath<Self>>::fold_children_with_ast_path(
+            node, self, __ast_path,
+        )
+    }
+    #[doc = "Visit a node of type `Vec < TextualContent >`.\n\nBy default, this method calls [`Vec \
+             < TextualContent >::fold_children_with_ast_path`]. If you want to recurse, you need \
+             to call it manually."]
+    #[inline]
+    fn fold_textual_contents(
+        &mut self,
+        node: Vec<TextualContent>,
+        __ast_path: &mut AstKindPath,
+    ) -> Vec<TextualContent> {
+        <Vec<TextualContent> as FoldWithAstPath<Self>>::fold_children_with_ast_path(
             node, self, __ast_path,
         )
     }
@@ -10544,6 +11756,15 @@ where
     V: ?Sized + FoldAstPath,
 {
     #[inline]
+    fn fold_atom(
+        &mut self,
+        node: swc_atoms::Atom,
+        __ast_path: &mut AstKindPath,
+    ) -> swc_atoms::Atom {
+        <V as FoldAstPath>::fold_atom(&mut **self, node, __ast_path)
+    }
+
+    #[inline]
     fn fold_atx_heading(&mut self, node: ATXHeading, __ast_path: &mut AstKindPath) -> ATXHeading {
         <V as FoldAstPath>::fold_atx_heading(&mut **self, node, __ast_path)
     }
@@ -10559,18 +11780,18 @@ where
     }
 
     #[inline]
-    fn fold_block(&mut self, node: Block, __ast_path: &mut AstKindPath) -> Block {
-        <V as FoldAstPath>::fold_block(&mut **self, node, __ast_path)
-    }
-
-    #[inline]
     fn fold_block_quote(&mut self, node: BlockQuote, __ast_path: &mut AstKindPath) -> BlockQuote {
         <V as FoldAstPath>::fold_block_quote(&mut **self, node, __ast_path)
     }
 
     #[inline]
-    fn fold_blocks(&mut self, node: Vec<Block>, __ast_path: &mut AstKindPath) -> Vec<Block> {
-        <V as FoldAstPath>::fold_blocks(&mut **self, node, __ast_path)
+    fn fold_child(&mut self, node: Child, __ast_path: &mut AstKindPath) -> Child {
+        <V as FoldAstPath>::fold_child(&mut **self, node, __ast_path)
+    }
+
+    #[inline]
+    fn fold_childs(&mut self, node: Vec<Child>, __ast_path: &mut AstKindPath) -> Vec<Child> {
+        <V as FoldAstPath>::fold_childs(&mut **self, node, __ast_path)
     }
 
     #[inline]
@@ -10593,12 +11814,8 @@ where
     }
 
     #[inline]
-    fn fold_emphasis_and_strong_emphasis(
-        &mut self,
-        node: EmphasisAndStrongEmphasis,
-        __ast_path: &mut AstKindPath,
-    ) -> EmphasisAndStrongEmphasis {
-        <V as FoldAstPath>::fold_emphasis_and_strong_emphasis(&mut **self, node, __ast_path)
+    fn fold_emphasis(&mut self, node: Emphasis, __ast_path: &mut AstKindPath) -> Emphasis {
+        <V as FoldAstPath>::fold_emphasis(&mut **self, node, __ast_path)
     }
 
     #[inline]
@@ -10648,15 +11865,6 @@ where
     }
 
     #[inline]
-    fn fold_inline_blocks(
-        &mut self,
-        node: Vec<InlineBlock>,
-        __ast_path: &mut AstKindPath,
-    ) -> Vec<InlineBlock> {
-        <V as FoldAstPath>::fold_inline_blocks(&mut **self, node, __ast_path)
-    }
-
-    #[inline]
     fn fold_leaf_block(&mut self, node: LeafBlock, __ast_path: &mut AstKindPath) -> LeafBlock {
         <V as FoldAstPath>::fold_leaf_block(&mut **self, node, __ast_path)
     }
@@ -10683,6 +11891,15 @@ where
     #[inline]
     fn fold_list_item(&mut self, node: ListItem, __ast_path: &mut AstKindPath) -> ListItem {
         <V as FoldAstPath>::fold_list_item(&mut **self, node, __ast_path)
+    }
+
+    #[inline]
+    fn fold_opt_atom(
+        &mut self,
+        node: Option<swc_atoms::Atom>,
+        __ast_path: &mut AstKindPath,
+    ) -> Option<swc_atoms::Atom> {
+        <V as FoldAstPath>::fold_opt_atom(&mut **self, node, __ast_path)
     }
 
     #[inline]
@@ -10728,12 +11945,30 @@ where
     }
 
     #[inline]
+    fn fold_strong_emphasis(
+        &mut self,
+        node: StrongEmphasis,
+        __ast_path: &mut AstKindPath,
+    ) -> StrongEmphasis {
+        <V as FoldAstPath>::fold_strong_emphasis(&mut **self, node, __ast_path)
+    }
+
+    #[inline]
     fn fold_textual_content(
         &mut self,
         node: TextualContent,
         __ast_path: &mut AstKindPath,
     ) -> TextualContent {
         <V as FoldAstPath>::fold_textual_content(&mut **self, node, __ast_path)
+    }
+
+    #[inline]
+    fn fold_textual_contents(
+        &mut self,
+        node: Vec<TextualContent>,
+        __ast_path: &mut AstKindPath,
+    ) -> Vec<TextualContent> {
+        <V as FoldAstPath>::fold_textual_contents(&mut **self, node, __ast_path)
     }
 
     #[inline]
@@ -10752,6 +11987,15 @@ where
     V: ?Sized + FoldAstPath,
 {
     #[inline]
+    fn fold_atom(
+        &mut self,
+        node: swc_atoms::Atom,
+        __ast_path: &mut AstKindPath,
+    ) -> swc_atoms::Atom {
+        <V as FoldAstPath>::fold_atom(&mut **self, node, __ast_path)
+    }
+
+    #[inline]
     fn fold_atx_heading(&mut self, node: ATXHeading, __ast_path: &mut AstKindPath) -> ATXHeading {
         <V as FoldAstPath>::fold_atx_heading(&mut **self, node, __ast_path)
     }
@@ -10767,18 +12011,18 @@ where
     }
 
     #[inline]
-    fn fold_block(&mut self, node: Block, __ast_path: &mut AstKindPath) -> Block {
-        <V as FoldAstPath>::fold_block(&mut **self, node, __ast_path)
-    }
-
-    #[inline]
     fn fold_block_quote(&mut self, node: BlockQuote, __ast_path: &mut AstKindPath) -> BlockQuote {
         <V as FoldAstPath>::fold_block_quote(&mut **self, node, __ast_path)
     }
 
     #[inline]
-    fn fold_blocks(&mut self, node: Vec<Block>, __ast_path: &mut AstKindPath) -> Vec<Block> {
-        <V as FoldAstPath>::fold_blocks(&mut **self, node, __ast_path)
+    fn fold_child(&mut self, node: Child, __ast_path: &mut AstKindPath) -> Child {
+        <V as FoldAstPath>::fold_child(&mut **self, node, __ast_path)
+    }
+
+    #[inline]
+    fn fold_childs(&mut self, node: Vec<Child>, __ast_path: &mut AstKindPath) -> Vec<Child> {
+        <V as FoldAstPath>::fold_childs(&mut **self, node, __ast_path)
     }
 
     #[inline]
@@ -10801,12 +12045,8 @@ where
     }
 
     #[inline]
-    fn fold_emphasis_and_strong_emphasis(
-        &mut self,
-        node: EmphasisAndStrongEmphasis,
-        __ast_path: &mut AstKindPath,
-    ) -> EmphasisAndStrongEmphasis {
-        <V as FoldAstPath>::fold_emphasis_and_strong_emphasis(&mut **self, node, __ast_path)
+    fn fold_emphasis(&mut self, node: Emphasis, __ast_path: &mut AstKindPath) -> Emphasis {
+        <V as FoldAstPath>::fold_emphasis(&mut **self, node, __ast_path)
     }
 
     #[inline]
@@ -10856,15 +12096,6 @@ where
     }
 
     #[inline]
-    fn fold_inline_blocks(
-        &mut self,
-        node: Vec<InlineBlock>,
-        __ast_path: &mut AstKindPath,
-    ) -> Vec<InlineBlock> {
-        <V as FoldAstPath>::fold_inline_blocks(&mut **self, node, __ast_path)
-    }
-
-    #[inline]
     fn fold_leaf_block(&mut self, node: LeafBlock, __ast_path: &mut AstKindPath) -> LeafBlock {
         <V as FoldAstPath>::fold_leaf_block(&mut **self, node, __ast_path)
     }
@@ -10891,6 +12122,15 @@ where
     #[inline]
     fn fold_list_item(&mut self, node: ListItem, __ast_path: &mut AstKindPath) -> ListItem {
         <V as FoldAstPath>::fold_list_item(&mut **self, node, __ast_path)
+    }
+
+    #[inline]
+    fn fold_opt_atom(
+        &mut self,
+        node: Option<swc_atoms::Atom>,
+        __ast_path: &mut AstKindPath,
+    ) -> Option<swc_atoms::Atom> {
+        <V as FoldAstPath>::fold_opt_atom(&mut **self, node, __ast_path)
     }
 
     #[inline]
@@ -10936,12 +12176,30 @@ where
     }
 
     #[inline]
+    fn fold_strong_emphasis(
+        &mut self,
+        node: StrongEmphasis,
+        __ast_path: &mut AstKindPath,
+    ) -> StrongEmphasis {
+        <V as FoldAstPath>::fold_strong_emphasis(&mut **self, node, __ast_path)
+    }
+
+    #[inline]
     fn fold_textual_content(
         &mut self,
         node: TextualContent,
         __ast_path: &mut AstKindPath,
     ) -> TextualContent {
         <V as FoldAstPath>::fold_textual_content(&mut **self, node, __ast_path)
+    }
+
+    #[inline]
+    fn fold_textual_contents(
+        &mut self,
+        node: Vec<TextualContent>,
+        __ast_path: &mut AstKindPath,
+    ) -> Vec<TextualContent> {
+        <V as FoldAstPath>::fold_textual_contents(&mut **self, node, __ast_path)
     }
 
     #[inline]
@@ -10961,6 +12219,18 @@ where
     B: FoldAstPath,
 {
     #[inline]
+    fn fold_atom(
+        &mut self,
+        node: swc_atoms::Atom,
+        __ast_path: &mut AstKindPath,
+    ) -> swc_atoms::Atom {
+        match self {
+            swc_visit::Either::Left(visitor) => FoldAstPath::fold_atom(visitor, node, __ast_path),
+            swc_visit::Either::Right(visitor) => FoldAstPath::fold_atom(visitor, node, __ast_path),
+        }
+    }
+
+    #[inline]
     fn fold_atx_heading(&mut self, node: ATXHeading, __ast_path: &mut AstKindPath) -> ATXHeading {
         match self {
             swc_visit::Either::Left(visitor) => {
@@ -10997,14 +12267,6 @@ where
     }
 
     #[inline]
-    fn fold_block(&mut self, node: Block, __ast_path: &mut AstKindPath) -> Block {
-        match self {
-            swc_visit::Either::Left(visitor) => FoldAstPath::fold_block(visitor, node, __ast_path),
-            swc_visit::Either::Right(visitor) => FoldAstPath::fold_block(visitor, node, __ast_path),
-        }
-    }
-
-    #[inline]
     fn fold_block_quote(&mut self, node: BlockQuote, __ast_path: &mut AstKindPath) -> BlockQuote {
         match self {
             swc_visit::Either::Left(visitor) => {
@@ -11017,11 +12279,19 @@ where
     }
 
     #[inline]
-    fn fold_blocks(&mut self, node: Vec<Block>, __ast_path: &mut AstKindPath) -> Vec<Block> {
+    fn fold_child(&mut self, node: Child, __ast_path: &mut AstKindPath) -> Child {
         match self {
-            swc_visit::Either::Left(visitor) => FoldAstPath::fold_blocks(visitor, node, __ast_path),
+            swc_visit::Either::Left(visitor) => FoldAstPath::fold_child(visitor, node, __ast_path),
+            swc_visit::Either::Right(visitor) => FoldAstPath::fold_child(visitor, node, __ast_path),
+        }
+    }
+
+    #[inline]
+    fn fold_childs(&mut self, node: Vec<Child>, __ast_path: &mut AstKindPath) -> Vec<Child> {
+        match self {
+            swc_visit::Either::Left(visitor) => FoldAstPath::fold_childs(visitor, node, __ast_path),
             swc_visit::Either::Right(visitor) => {
-                FoldAstPath::fold_blocks(visitor, node, __ast_path)
+                FoldAstPath::fold_childs(visitor, node, __ast_path)
             }
         }
     }
@@ -11067,17 +12337,13 @@ where
     }
 
     #[inline]
-    fn fold_emphasis_and_strong_emphasis(
-        &mut self,
-        node: EmphasisAndStrongEmphasis,
-        __ast_path: &mut AstKindPath,
-    ) -> EmphasisAndStrongEmphasis {
+    fn fold_emphasis(&mut self, node: Emphasis, __ast_path: &mut AstKindPath) -> Emphasis {
         match self {
             swc_visit::Either::Left(visitor) => {
-                FoldAstPath::fold_emphasis_and_strong_emphasis(visitor, node, __ast_path)
+                FoldAstPath::fold_emphasis(visitor, node, __ast_path)
             }
             swc_visit::Either::Right(visitor) => {
-                FoldAstPath::fold_emphasis_and_strong_emphasis(visitor, node, __ast_path)
+                FoldAstPath::fold_emphasis(visitor, node, __ast_path)
             }
         }
     }
@@ -11167,22 +12433,6 @@ where
     }
 
     #[inline]
-    fn fold_inline_blocks(
-        &mut self,
-        node: Vec<InlineBlock>,
-        __ast_path: &mut AstKindPath,
-    ) -> Vec<InlineBlock> {
-        match self {
-            swc_visit::Either::Left(visitor) => {
-                FoldAstPath::fold_inline_blocks(visitor, node, __ast_path)
-            }
-            swc_visit::Either::Right(visitor) => {
-                FoldAstPath::fold_inline_blocks(visitor, node, __ast_path)
-            }
-        }
-    }
-
-    #[inline]
     fn fold_leaf_block(&mut self, node: LeafBlock, __ast_path: &mut AstKindPath) -> LeafBlock {
         match self {
             swc_visit::Either::Left(visitor) => {
@@ -11234,6 +12484,22 @@ where
             }
             swc_visit::Either::Right(visitor) => {
                 FoldAstPath::fold_list_item(visitor, node, __ast_path)
+            }
+        }
+    }
+
+    #[inline]
+    fn fold_opt_atom(
+        &mut self,
+        node: Option<swc_atoms::Atom>,
+        __ast_path: &mut AstKindPath,
+    ) -> Option<swc_atoms::Atom> {
+        match self {
+            swc_visit::Either::Left(visitor) => {
+                FoldAstPath::fold_opt_atom(visitor, node, __ast_path)
+            }
+            swc_visit::Either::Right(visitor) => {
+                FoldAstPath::fold_opt_atom(visitor, node, __ast_path)
             }
         }
     }
@@ -11317,6 +12583,22 @@ where
     }
 
     #[inline]
+    fn fold_strong_emphasis(
+        &mut self,
+        node: StrongEmphasis,
+        __ast_path: &mut AstKindPath,
+    ) -> StrongEmphasis {
+        match self {
+            swc_visit::Either::Left(visitor) => {
+                FoldAstPath::fold_strong_emphasis(visitor, node, __ast_path)
+            }
+            swc_visit::Either::Right(visitor) => {
+                FoldAstPath::fold_strong_emphasis(visitor, node, __ast_path)
+            }
+        }
+    }
+
+    #[inline]
     fn fold_textual_content(
         &mut self,
         node: TextualContent,
@@ -11328,6 +12610,22 @@ where
             }
             swc_visit::Either::Right(visitor) => {
                 FoldAstPath::fold_textual_content(visitor, node, __ast_path)
+            }
+        }
+    }
+
+    #[inline]
+    fn fold_textual_contents(
+        &mut self,
+        node: Vec<TextualContent>,
+        __ast_path: &mut AstKindPath,
+    ) -> Vec<TextualContent> {
+        match self {
+            swc_visit::Either::Left(visitor) => {
+                FoldAstPath::fold_textual_contents(visitor, node, __ast_path)
+            }
+            swc_visit::Either::Right(visitor) => {
+                FoldAstPath::fold_textual_contents(visitor, node, __ast_path)
             }
         }
     }
@@ -11354,6 +12652,19 @@ impl<V> FoldAstPath for ::swc_visit::Optional<V>
 where
     V: FoldAstPath,
 {
+    #[inline]
+    fn fold_atom(
+        &mut self,
+        node: swc_atoms::Atom,
+        __ast_path: &mut AstKindPath,
+    ) -> swc_atoms::Atom {
+        if self.enabled {
+            <V as FoldAstPath>::fold_atom(&mut self.visitor, node, __ast_path)
+        } else {
+            node
+        }
+    }
+
     #[inline]
     fn fold_atx_heading(&mut self, node: ATXHeading, __ast_path: &mut AstKindPath) -> ATXHeading {
         if self.enabled {
@@ -11382,15 +12693,6 @@ where
     }
 
     #[inline]
-    fn fold_block(&mut self, node: Block, __ast_path: &mut AstKindPath) -> Block {
-        if self.enabled {
-            <V as FoldAstPath>::fold_block(&mut self.visitor, node, __ast_path)
-        } else {
-            node
-        }
-    }
-
-    #[inline]
     fn fold_block_quote(&mut self, node: BlockQuote, __ast_path: &mut AstKindPath) -> BlockQuote {
         if self.enabled {
             <V as FoldAstPath>::fold_block_quote(&mut self.visitor, node, __ast_path)
@@ -11400,9 +12702,18 @@ where
     }
 
     #[inline]
-    fn fold_blocks(&mut self, node: Vec<Block>, __ast_path: &mut AstKindPath) -> Vec<Block> {
+    fn fold_child(&mut self, node: Child, __ast_path: &mut AstKindPath) -> Child {
         if self.enabled {
-            <V as FoldAstPath>::fold_blocks(&mut self.visitor, node, __ast_path)
+            <V as FoldAstPath>::fold_child(&mut self.visitor, node, __ast_path)
+        } else {
+            node
+        }
+    }
+
+    #[inline]
+    fn fold_childs(&mut self, node: Vec<Child>, __ast_path: &mut AstKindPath) -> Vec<Child> {
+        if self.enabled {
+            <V as FoldAstPath>::fold_childs(&mut self.visitor, node, __ast_path)
         } else {
             node
         }
@@ -11440,17 +12751,9 @@ where
     }
 
     #[inline]
-    fn fold_emphasis_and_strong_emphasis(
-        &mut self,
-        node: EmphasisAndStrongEmphasis,
-        __ast_path: &mut AstKindPath,
-    ) -> EmphasisAndStrongEmphasis {
+    fn fold_emphasis(&mut self, node: Emphasis, __ast_path: &mut AstKindPath) -> Emphasis {
         if self.enabled {
-            <V as FoldAstPath>::fold_emphasis_and_strong_emphasis(
-                &mut self.visitor,
-                node,
-                __ast_path,
-            )
+            <V as FoldAstPath>::fold_emphasis(&mut self.visitor, node, __ast_path)
         } else {
             node
         }
@@ -11527,19 +12830,6 @@ where
     }
 
     #[inline]
-    fn fold_inline_blocks(
-        &mut self,
-        node: Vec<InlineBlock>,
-        __ast_path: &mut AstKindPath,
-    ) -> Vec<InlineBlock> {
-        if self.enabled {
-            <V as FoldAstPath>::fold_inline_blocks(&mut self.visitor, node, __ast_path)
-        } else {
-            node
-        }
-    }
-
-    #[inline]
     fn fold_leaf_block(&mut self, node: LeafBlock, __ast_path: &mut AstKindPath) -> LeafBlock {
         if self.enabled {
             <V as FoldAstPath>::fold_leaf_block(&mut self.visitor, node, __ast_path)
@@ -11583,6 +12873,19 @@ where
     fn fold_list_item(&mut self, node: ListItem, __ast_path: &mut AstKindPath) -> ListItem {
         if self.enabled {
             <V as FoldAstPath>::fold_list_item(&mut self.visitor, node, __ast_path)
+        } else {
+            node
+        }
+    }
+
+    #[inline]
+    fn fold_opt_atom(
+        &mut self,
+        node: Option<swc_atoms::Atom>,
+        __ast_path: &mut AstKindPath,
+    ) -> Option<swc_atoms::Atom> {
+        if self.enabled {
+            <V as FoldAstPath>::fold_opt_atom(&mut self.visitor, node, __ast_path)
         } else {
             node
         }
@@ -11655,6 +12958,19 @@ where
     }
 
     #[inline]
+    fn fold_strong_emphasis(
+        &mut self,
+        node: StrongEmphasis,
+        __ast_path: &mut AstKindPath,
+    ) -> StrongEmphasis {
+        if self.enabled {
+            <V as FoldAstPath>::fold_strong_emphasis(&mut self.visitor, node, __ast_path)
+        } else {
+            node
+        }
+    }
+
+    #[inline]
     fn fold_textual_content(
         &mut self,
         node: TextualContent,
@@ -11662,6 +12978,19 @@ where
     ) -> TextualContent {
         if self.enabled {
             <V as FoldAstPath>::fold_textual_content(&mut self.visitor, node, __ast_path)
+        } else {
+            node
+        }
+    }
+
+    #[inline]
+    fn fold_textual_contents(
+        &mut self,
+        node: Vec<TextualContent>,
+        __ast_path: &mut AstKindPath,
+    ) -> Vec<TextualContent> {
+        if self.enabled {
+            <V as FoldAstPath>::fold_textual_contents(&mut self.visitor, node, __ast_path)
         } else {
             node
         }
@@ -11718,7 +13047,7 @@ impl<V: ?Sized + FoldAstPath> FoldWithAstPath<V> for ATXHeading {
                     let mut __ast_path = __ast_path.with_guard(AstParentKind::ATXHeading(
                         self::fields::ATXHeadingField::Children(usize::MAX),
                     ));
-                    <Vec<InlineBlock> as FoldWithAstPath<V>>::fold_with_ast_path(
+                    <Vec<Child> as FoldWithAstPath<V>>::fold_with_ast_path(
                         children,
                         visitor,
                         &mut *__ast_path,
@@ -11785,49 +13114,6 @@ impl<V: ?Sized + FoldAstPath> FoldWithAstPath<V> for BlankLine {
 }
 #[cfg(any(docsrs, feature = "path"))]
 #[cfg_attr(docsrs, doc(cfg(feature = "path")))]
-impl<V: ?Sized + FoldAstPath> FoldWithAstPath<V> for Block {
-    #[doc = "Calls [FoldAstPath`::fold_block`] with `self`."]
-    fn fold_with_ast_path(self, visitor: &mut V, __ast_path: &mut AstKindPath) -> Self {
-        <V as FoldAstPath>::fold_block(visitor, self, __ast_path)
-    }
-
-    fn fold_children_with_ast_path(self, visitor: &mut V, __ast_path: &mut AstKindPath) -> Self {
-        match self {
-            Block::Leaf { 0: _field_0 } => {
-                let mut __ast_path =
-                    __ast_path.with_guard(AstParentKind::Block(self::fields::BlockField::Leaf));
-                let _field_0 = <LeafBlock as FoldWithAstPath<V>>::fold_with_ast_path(
-                    _field_0,
-                    visitor,
-                    &mut *__ast_path,
-                );
-                Block::Leaf { 0: _field_0 }
-            }
-            Block::Container { 0: _field_0 } => {
-                let mut __ast_path = __ast_path
-                    .with_guard(AstParentKind::Block(self::fields::BlockField::Container));
-                let _field_0 = <ContainerBlock as FoldWithAstPath<V>>::fold_with_ast_path(
-                    _field_0,
-                    visitor,
-                    &mut *__ast_path,
-                );
-                Block::Container { 0: _field_0 }
-            }
-            Block::Inline { 0: _field_0 } => {
-                let mut __ast_path =
-                    __ast_path.with_guard(AstParentKind::Block(self::fields::BlockField::Inline));
-                let _field_0 = <InlineBlock as FoldWithAstPath<V>>::fold_with_ast_path(
-                    _field_0,
-                    visitor,
-                    &mut *__ast_path,
-                );
-                Block::Inline { 0: _field_0 }
-            }
-        }
-    }
-}
-#[cfg(any(docsrs, feature = "path"))]
-#[cfg_attr(docsrs, doc(cfg(feature = "path")))]
 impl<V: ?Sized + FoldAstPath> FoldWithAstPath<V> for BlockQuote {
     #[doc = "Calls [FoldAstPath`::fold_block_quote`] with `self`."]
     fn fold_with_ast_path(self, visitor: &mut V, __ast_path: &mut AstKindPath) -> Self {
@@ -11836,7 +13122,7 @@ impl<V: ?Sized + FoldAstPath> FoldWithAstPath<V> for BlockQuote {
 
     fn fold_children_with_ast_path(self, visitor: &mut V, __ast_path: &mut AstKindPath) -> Self {
         match self {
-            BlockQuote { span } => {
+            BlockQuote { span, children } => {
                 let span = {
                     let mut __ast_path = __ast_path.with_guard(AstParentKind::BlockQuote(
                         self::fields::BlockQuoteField::Span,
@@ -11847,7 +13133,60 @@ impl<V: ?Sized + FoldAstPath> FoldWithAstPath<V> for BlockQuote {
                         &mut *__ast_path,
                     )
                 };
-                BlockQuote { span }
+                let children = {
+                    let mut __ast_path = __ast_path.with_guard(AstParentKind::BlockQuote(
+                        self::fields::BlockQuoteField::Children(usize::MAX),
+                    ));
+                    <Vec<Child> as FoldWithAstPath<V>>::fold_with_ast_path(
+                        children,
+                        visitor,
+                        &mut *__ast_path,
+                    )
+                };
+                BlockQuote { span, children }
+            }
+        }
+    }
+}
+#[cfg(any(docsrs, feature = "path"))]
+#[cfg_attr(docsrs, doc(cfg(feature = "path")))]
+impl<V: ?Sized + FoldAstPath> FoldWithAstPath<V> for Child {
+    #[doc = "Calls [FoldAstPath`::fold_child`] with `self`."]
+    fn fold_with_ast_path(self, visitor: &mut V, __ast_path: &mut AstKindPath) -> Self {
+        <V as FoldAstPath>::fold_child(visitor, self, __ast_path)
+    }
+
+    fn fold_children_with_ast_path(self, visitor: &mut V, __ast_path: &mut AstKindPath) -> Self {
+        match self {
+            Child::Leaf { 0: _field_0 } => {
+                let mut __ast_path =
+                    __ast_path.with_guard(AstParentKind::Child(self::fields::ChildField::Leaf));
+                let _field_0 = <LeafBlock as FoldWithAstPath<V>>::fold_with_ast_path(
+                    _field_0,
+                    visitor,
+                    &mut *__ast_path,
+                );
+                Child::Leaf { 0: _field_0 }
+            }
+            Child::Container { 0: _field_0 } => {
+                let mut __ast_path = __ast_path
+                    .with_guard(AstParentKind::Child(self::fields::ChildField::Container));
+                let _field_0 = <ContainerBlock as FoldWithAstPath<V>>::fold_with_ast_path(
+                    _field_0,
+                    visitor,
+                    &mut *__ast_path,
+                );
+                Child::Container { 0: _field_0 }
+            }
+            Child::Inline { 0: _field_0 } => {
+                let mut __ast_path =
+                    __ast_path.with_guard(AstParentKind::Child(self::fields::ChildField::Inline));
+                let _field_0 = <InlineBlock as FoldWithAstPath<V>>::fold_with_ast_path(
+                    _field_0,
+                    visitor,
+                    &mut *__ast_path,
+                );
+                Child::Inline { 0: _field_0 }
             }
         }
     }
@@ -11952,7 +13291,7 @@ impl<V: ?Sized + FoldAstPath> FoldWithAstPath<V> for Document {
                     let mut __ast_path = __ast_path.with_guard(AstParentKind::Document(
                         self::fields::DocumentField::Children(usize::MAX),
                     ));
-                    <Vec<Block> as FoldWithAstPath<V>>::fold_with_ast_path(
+                    <Vec<Child> as FoldWithAstPath<V>>::fold_with_ast_path(
                         children,
                         visitor,
                         &mut *__ast_path,
@@ -11970,27 +13309,35 @@ impl<V: ?Sized + FoldAstPath> FoldWithAstPath<V> for Document {
 }
 #[cfg(any(docsrs, feature = "path"))]
 #[cfg_attr(docsrs, doc(cfg(feature = "path")))]
-impl<V: ?Sized + FoldAstPath> FoldWithAstPath<V> for EmphasisAndStrongEmphasis {
-    #[doc = "Calls [FoldAstPath`::fold_emphasis_and_strong_emphasis`] with `self`."]
+impl<V: ?Sized + FoldAstPath> FoldWithAstPath<V> for Emphasis {
+    #[doc = "Calls [FoldAstPath`::fold_emphasis`] with `self`."]
     fn fold_with_ast_path(self, visitor: &mut V, __ast_path: &mut AstKindPath) -> Self {
-        <V as FoldAstPath>::fold_emphasis_and_strong_emphasis(visitor, self, __ast_path)
+        <V as FoldAstPath>::fold_emphasis(visitor, self, __ast_path)
     }
 
     fn fold_children_with_ast_path(self, visitor: &mut V, __ast_path: &mut AstKindPath) -> Self {
         match self {
-            EmphasisAndStrongEmphasis { span } => {
+            Emphasis { span, content } => {
                 let span = {
-                    let mut __ast_path =
-                        __ast_path.with_guard(AstParentKind::EmphasisAndStrongEmphasis(
-                            self::fields::EmphasisAndStrongEmphasisField::Span,
-                        ));
+                    let mut __ast_path = __ast_path
+                        .with_guard(AstParentKind::Emphasis(self::fields::EmphasisField::Span));
                     <swc_common::Span as FoldWithAstPath<V>>::fold_with_ast_path(
                         span,
                         visitor,
                         &mut *__ast_path,
                     )
                 };
-                EmphasisAndStrongEmphasis { span }
+                let content = {
+                    let mut __ast_path = __ast_path.with_guard(AstParentKind::Emphasis(
+                        self::fields::EmphasisField::Content(usize::MAX),
+                    ));
+                    <Vec<TextualContent> as FoldWithAstPath<V>>::fold_with_ast_path(
+                        content,
+                        visitor,
+                        &mut *__ast_path,
+                    )
+                };
+                Emphasis { span, content }
             }
         }
     }
@@ -12005,7 +13352,7 @@ impl<V: ?Sized + FoldAstPath> FoldWithAstPath<V> for FencedCodeBlock {
 
     fn fold_children_with_ast_path(self, visitor: &mut V, __ast_path: &mut AstKindPath) -> Self {
         match self {
-            FencedCodeBlock { span } => {
+            FencedCodeBlock { span, info, code } => {
                 let span = {
                     let mut __ast_path = __ast_path.with_guard(AstParentKind::FencedCodeBlock(
                         self::fields::FencedCodeBlockField::Span,
@@ -12016,7 +13363,27 @@ impl<V: ?Sized + FoldAstPath> FoldWithAstPath<V> for FencedCodeBlock {
                         &mut *__ast_path,
                     )
                 };
-                FencedCodeBlock { span }
+                let info = {
+                    let mut __ast_path = __ast_path.with_guard(AstParentKind::FencedCodeBlock(
+                        self::fields::FencedCodeBlockField::Info,
+                    ));
+                    <Option<swc_atoms::Atom> as FoldWithAstPath<V>>::fold_with_ast_path(
+                        info,
+                        visitor,
+                        &mut *__ast_path,
+                    )
+                };
+                let code = {
+                    let mut __ast_path = __ast_path.with_guard(AstParentKind::FencedCodeBlock(
+                        self::fields::FencedCodeBlockField::Code,
+                    ));
+                    <swc_atoms::Atom as FoldWithAstPath<V>>::fold_with_ast_path(
+                        code,
+                        visitor,
+                        &mut *__ast_path,
+                    )
+                };
+                FencedCodeBlock { span, info, code }
             }
         }
     }
@@ -12031,7 +13398,7 @@ impl<V: ?Sized + FoldAstPath> FoldWithAstPath<V> for HTMLBlock {
 
     fn fold_children_with_ast_path(self, visitor: &mut V, __ast_path: &mut AstKindPath) -> Self {
         match self {
-            HTMLBlock { span } => {
+            HTMLBlock { span, html } => {
                 let span = {
                     let mut __ast_path = __ast_path
                         .with_guard(AstParentKind::HTMLBlock(self::fields::HTMLBlockField::Span));
@@ -12041,7 +13408,16 @@ impl<V: ?Sized + FoldAstPath> FoldWithAstPath<V> for HTMLBlock {
                         &mut *__ast_path,
                     )
                 };
-                HTMLBlock { span }
+                let html = {
+                    let mut __ast_path = __ast_path
+                        .with_guard(AstParentKind::HTMLBlock(self::fields::HTMLBlockField::Html));
+                    <swc_atoms::Atom as FoldWithAstPath<V>>::fold_with_ast_path(
+                        html,
+                        visitor,
+                        &mut *__ast_path,
+                    )
+                };
+                HTMLBlock { span, html }
             }
         }
     }
@@ -12107,7 +13483,7 @@ impl<V: ?Sized + FoldAstPath> FoldWithAstPath<V> for IndentedCodeBlock {
 
     fn fold_children_with_ast_path(self, visitor: &mut V, __ast_path: &mut AstKindPath) -> Self {
         match self {
-            IndentedCodeBlock { span } => {
+            IndentedCodeBlock { span, code } => {
                 let span = {
                     let mut __ast_path = __ast_path.with_guard(AstParentKind::IndentedCodeBlock(
                         self::fields::IndentedCodeBlockField::Span,
@@ -12118,7 +13494,17 @@ impl<V: ?Sized + FoldAstPath> FoldWithAstPath<V> for IndentedCodeBlock {
                         &mut *__ast_path,
                     )
                 };
-                IndentedCodeBlock { span }
+                let code = {
+                    let mut __ast_path = __ast_path.with_guard(AstParentKind::IndentedCodeBlock(
+                        self::fields::IndentedCodeBlockField::Code,
+                    ));
+                    <swc_atoms::Atom as FoldWithAstPath<V>>::fold_with_ast_path(
+                        code,
+                        visitor,
+                        &mut *__ast_path,
+                    )
+                };
+                IndentedCodeBlock { span, code }
             }
         }
     }
@@ -12144,17 +13530,27 @@ impl<V: ?Sized + FoldAstPath> FoldWithAstPath<V> for InlineBlock {
                 );
                 InlineBlock::CodeSpan { 0: _field_0 }
             }
-            InlineBlock::EmphasisAndStrongEmphasis { 0: _field_0 } => {
+            InlineBlock::Emphasis { 0: _field_0 } => {
                 let mut __ast_path = __ast_path.with_guard(AstParentKind::InlineBlock(
-                    self::fields::InlineBlockField::EmphasisAndStrongEmphasis,
+                    self::fields::InlineBlockField::Emphasis,
                 ));
-                let _field_0 =
-                    <EmphasisAndStrongEmphasis as FoldWithAstPath<V>>::fold_with_ast_path(
-                        _field_0,
-                        visitor,
-                        &mut *__ast_path,
-                    );
-                InlineBlock::EmphasisAndStrongEmphasis { 0: _field_0 }
+                let _field_0 = <Emphasis as FoldWithAstPath<V>>::fold_with_ast_path(
+                    _field_0,
+                    visitor,
+                    &mut *__ast_path,
+                );
+                InlineBlock::Emphasis { 0: _field_0 }
+            }
+            InlineBlock::StrongEmphasis { 0: _field_0 } => {
+                let mut __ast_path = __ast_path.with_guard(AstParentKind::InlineBlock(
+                    self::fields::InlineBlockField::StrongEmphasis,
+                ));
+                let _field_0 = <StrongEmphasis as FoldWithAstPath<V>>::fold_with_ast_path(
+                    _field_0,
+                    visitor,
+                    &mut *__ast_path,
+                );
+                InlineBlock::StrongEmphasis { 0: _field_0 }
             }
             InlineBlock::Link { 0: _field_0 } => {
                 let mut __ast_path = __ast_path.with_guard(AstParentKind::InlineBlock(
@@ -12383,7 +13779,12 @@ impl<V: ?Sized + FoldAstPath> FoldWithAstPath<V> for LinkReferenceDefinition {
 
     fn fold_children_with_ast_path(self, visitor: &mut V, __ast_path: &mut AstKindPath) -> Self {
         match self {
-            LinkReferenceDefinition { span } => {
+            LinkReferenceDefinition {
+                span,
+                label,
+                destination,
+                title,
+            } => {
                 let span = {
                     let mut __ast_path =
                         __ast_path.with_guard(AstParentKind::LinkReferenceDefinition(
@@ -12395,7 +13796,45 @@ impl<V: ?Sized + FoldAstPath> FoldWithAstPath<V> for LinkReferenceDefinition {
                         &mut *__ast_path,
                     )
                 };
-                LinkReferenceDefinition { span }
+                let label = {
+                    let mut __ast_path =
+                        __ast_path.with_guard(AstParentKind::LinkReferenceDefinition(
+                            self::fields::LinkReferenceDefinitionField::Label,
+                        ));
+                    <swc_atoms::Atom as FoldWithAstPath<V>>::fold_with_ast_path(
+                        label,
+                        visitor,
+                        &mut *__ast_path,
+                    )
+                };
+                let destination = {
+                    let mut __ast_path =
+                        __ast_path.with_guard(AstParentKind::LinkReferenceDefinition(
+                            self::fields::LinkReferenceDefinitionField::Destination,
+                        ));
+                    <swc_atoms::Atom as FoldWithAstPath<V>>::fold_with_ast_path(
+                        destination,
+                        visitor,
+                        &mut *__ast_path,
+                    )
+                };
+                let title = {
+                    let mut __ast_path =
+                        __ast_path.with_guard(AstParentKind::LinkReferenceDefinition(
+                            self::fields::LinkReferenceDefinitionField::Title,
+                        ));
+                    <Option<swc_atoms::Atom> as FoldWithAstPath<V>>::fold_with_ast_path(
+                        title,
+                        visitor,
+                        &mut *__ast_path,
+                    )
+                };
+                LinkReferenceDefinition {
+                    span,
+                    label,
+                    destination,
+                    title,
+                }
             }
         }
     }
@@ -12474,7 +13913,7 @@ impl<V: ?Sized + FoldAstPath> FoldWithAstPath<V> for Paragraph {
                     let mut __ast_path = __ast_path.with_guard(AstParentKind::Paragraph(
                         self::fields::ParagraphField::Children(usize::MAX),
                     ));
-                    <Vec<InlineBlock> as FoldWithAstPath<V>>::fold_with_ast_path(
+                    <Vec<Child> as FoldWithAstPath<V>>::fold_with_ast_path(
                         children,
                         visitor,
                         &mut *__ast_path,
@@ -12539,7 +13978,7 @@ impl<V: ?Sized + FoldAstPath> FoldWithAstPath<V> for SetextHeading {
                     let mut __ast_path = __ast_path.with_guard(AstParentKind::SetextHeading(
                         self::fields::SetextHeadingField::Children(usize::MAX),
                     ));
-                    <Vec<InlineBlock> as FoldWithAstPath<V>>::fold_with_ast_path(
+                    <Vec<Child> as FoldWithAstPath<V>>::fold_with_ast_path(
                         children,
                         visitor,
                         &mut *__ast_path,
@@ -12576,6 +14015,42 @@ impl<V: ?Sized + FoldAstPath> FoldWithAstPath<V> for SoftLineBreak {
                     )
                 };
                 SoftLineBreak { span }
+            }
+        }
+    }
+}
+#[cfg(any(docsrs, feature = "path"))]
+#[cfg_attr(docsrs, doc(cfg(feature = "path")))]
+impl<V: ?Sized + FoldAstPath> FoldWithAstPath<V> for StrongEmphasis {
+    #[doc = "Calls [FoldAstPath`::fold_strong_emphasis`] with `self`."]
+    fn fold_with_ast_path(self, visitor: &mut V, __ast_path: &mut AstKindPath) -> Self {
+        <V as FoldAstPath>::fold_strong_emphasis(visitor, self, __ast_path)
+    }
+
+    fn fold_children_with_ast_path(self, visitor: &mut V, __ast_path: &mut AstKindPath) -> Self {
+        match self {
+            StrongEmphasis { span, content } => {
+                let span = {
+                    let mut __ast_path = __ast_path.with_guard(AstParentKind::StrongEmphasis(
+                        self::fields::StrongEmphasisField::Span,
+                    ));
+                    <swc_common::Span as FoldWithAstPath<V>>::fold_with_ast_path(
+                        span,
+                        visitor,
+                        &mut *__ast_path,
+                    )
+                };
+                let content = {
+                    let mut __ast_path = __ast_path.with_guard(AstParentKind::StrongEmphasis(
+                        self::fields::StrongEmphasisField::Content(usize::MAX),
+                    ));
+                    <Vec<TextualContent> as FoldWithAstPath<V>>::fold_with_ast_path(
+                        content,
+                        visitor,
+                        &mut *__ast_path,
+                    )
+                };
+                StrongEmphasis { span, content }
             }
         }
     }
@@ -12644,11 +14119,25 @@ impl<V: ?Sized + FoldAstPath> FoldWithAstPath<V> for ThematicBreak {
 }
 #[cfg(any(docsrs, feature = "path"))]
 #[cfg_attr(docsrs, doc(cfg(feature = "path")))]
-impl<V: ?Sized + FoldAstPath> FoldWithAstPath<V> for Vec<Block> {
-    #[doc = "Calls [FoldAstPath`::fold_blocks`] with `self`. (Extra impl)"]
+impl<V: ?Sized + FoldAstPath> FoldWithAstPath<V> for swc_atoms::Atom {
+    #[doc = "Calls [FoldAstPath`::fold_atom`] with `self`. (Extra impl)"]
     #[inline]
     fn fold_with_ast_path(self, visitor: &mut V, __ast_path: &mut AstKindPath) -> Self {
-        <V as FoldAstPath>::fold_blocks(visitor, self, __ast_path)
+        <V as FoldAstPath>::fold_atom(visitor, self, __ast_path)
+    }
+
+    #[inline]
+    fn fold_children_with_ast_path(self, visitor: &mut V, __ast_path: &mut AstKindPath) -> Self {
+        self
+    }
+}
+#[cfg(any(docsrs, feature = "path"))]
+#[cfg_attr(docsrs, doc(cfg(feature = "path")))]
+impl<V: ?Sized + FoldAstPath> FoldWithAstPath<V> for Vec<Child> {
+    #[doc = "Calls [FoldAstPath`::fold_childs`] with `self`. (Extra impl)"]
+    #[inline]
+    fn fold_with_ast_path(self, visitor: &mut V, __ast_path: &mut AstKindPath) -> Self {
+        <V as FoldAstPath>::fold_childs(visitor, self, __ast_path)
     }
 
     #[inline]
@@ -12657,33 +14146,25 @@ impl<V: ?Sized + FoldAstPath> FoldWithAstPath<V> for Vec<Block> {
             .enumerate()
             .map(|(__idx, item)| {
                 let mut __ast_path = __ast_path.with_index_guard(__idx);
-                <Block as FoldWithAstPath<V>>::fold_with_ast_path(item, visitor, &mut *__ast_path)
+                <Child as FoldWithAstPath<V>>::fold_with_ast_path(item, visitor, &mut *__ast_path)
             })
             .collect()
     }
 }
 #[cfg(any(docsrs, feature = "path"))]
 #[cfg_attr(docsrs, doc(cfg(feature = "path")))]
-impl<V: ?Sized + FoldAstPath> FoldWithAstPath<V> for Vec<InlineBlock> {
-    #[doc = "Calls [FoldAstPath`::fold_inline_blocks`] with `self`. (Extra impl)"]
+impl<V: ?Sized + FoldAstPath> FoldWithAstPath<V> for Option<swc_atoms::Atom> {
+    #[doc = "Calls [FoldAstPath`::fold_opt_atom`] with `self`. (Extra impl)"]
     #[inline]
     fn fold_with_ast_path(self, visitor: &mut V, __ast_path: &mut AstKindPath) -> Self {
-        <V as FoldAstPath>::fold_inline_blocks(visitor, self, __ast_path)
+        <V as FoldAstPath>::fold_opt_atom(visitor, self, __ast_path)
     }
 
     #[inline]
     fn fold_children_with_ast_path(self, visitor: &mut V, __ast_path: &mut AstKindPath) -> Self {
-        self.into_iter()
-            .enumerate()
-            .map(|(__idx, item)| {
-                let mut __ast_path = __ast_path.with_index_guard(__idx);
-                <InlineBlock as FoldWithAstPath<V>>::fold_with_ast_path(
-                    item,
-                    visitor,
-                    &mut *__ast_path,
-                )
-            })
-            .collect()
+        self.map(|inner| {
+            <swc_atoms::Atom as FoldWithAstPath<V>>::fold_with_ast_path(inner, visitor, __ast_path)
+        })
     }
 }
 #[cfg(any(docsrs, feature = "path"))]
@@ -12712,6 +14193,30 @@ impl<V: ?Sized + FoldAstPath> FoldWithAstPath<V> for String {
     #[inline]
     fn fold_children_with_ast_path(self, visitor: &mut V, __ast_path: &mut AstKindPath) -> Self {
         self
+    }
+}
+#[cfg(any(docsrs, feature = "path"))]
+#[cfg_attr(docsrs, doc(cfg(feature = "path")))]
+impl<V: ?Sized + FoldAstPath> FoldWithAstPath<V> for Vec<TextualContent> {
+    #[doc = "Calls [FoldAstPath`::fold_textual_contents`] with `self`. (Extra impl)"]
+    #[inline]
+    fn fold_with_ast_path(self, visitor: &mut V, __ast_path: &mut AstKindPath) -> Self {
+        <V as FoldAstPath>::fold_textual_contents(visitor, self, __ast_path)
+    }
+
+    #[inline]
+    fn fold_children_with_ast_path(self, visitor: &mut V, __ast_path: &mut AstKindPath) -> Self {
+        self.into_iter()
+            .enumerate()
+            .map(|(__idx, item)| {
+                let mut __ast_path = __ast_path.with_index_guard(__idx);
+                <TextualContent as FoldWithAstPath<V>>::fold_with_ast_path(
+                    item,
+                    visitor,
+                    &mut *__ast_path,
+                )
+            })
+            .collect()
     }
 }
 #[cfg(any(docsrs, feature = "path"))]
@@ -12798,25 +14303,13 @@ pub mod fields {
         #[doc = "Represents [`BlankLine::span`]"]
         Span,
     }
-    impl BlockField {
-        #[inline(always)]
-        pub(crate) fn set_index(&mut self, _: usize) {
-            swc_visit::wrong_ast_path();
-        }
-    }
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-    #[cfg_attr(feature = "serde-impl", derive(serde::Serialize, serde::Deserialize))]
-    pub enum BlockField {
-        #[doc = "Represents [`Block::Leaf`]"]
-        Leaf,
-        #[doc = "Represents [`Block::Container`]"]
-        Container,
-        #[doc = "Represents [`Block::Inline`]"]
-        Inline,
-    }
     impl BlockQuoteField {
         pub(crate) fn set_index(&mut self, index: usize) {
             match self {
+                Self::Children(idx) => {
+                    assert_initial_index(*idx, index);
+                    *idx = index;
+                }
                 _ => swc_visit::wrong_ast_path(),
             }
         }
@@ -12826,6 +14319,24 @@ pub mod fields {
     pub enum BlockQuoteField {
         #[doc = "Represents [`BlockQuote::span`]"]
         Span,
+        #[doc = "Represents [`BlockQuote::children`]"]
+        Children(usize),
+    }
+    impl ChildField {
+        #[inline(always)]
+        pub(crate) fn set_index(&mut self, _: usize) {
+            swc_visit::wrong_ast_path();
+        }
+    }
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    #[cfg_attr(feature = "serde-impl", derive(serde::Serialize, serde::Deserialize))]
+    pub enum ChildField {
+        #[doc = "Represents [`Child::Leaf`]"]
+        Leaf,
+        #[doc = "Represents [`Child::Container`]"]
+        Container,
+        #[doc = "Represents [`Child::Inline`]"]
+        Inline,
     }
     impl CodeSpanField {
         pub(crate) fn set_index(&mut self, index: usize) {
@@ -12879,18 +14390,24 @@ pub mod fields {
         #[doc = "Represents [`Document::children`]"]
         Children(usize),
     }
-    impl EmphasisAndStrongEmphasisField {
+    impl EmphasisField {
         pub(crate) fn set_index(&mut self, index: usize) {
             match self {
+                Self::Content(idx) => {
+                    assert_initial_index(*idx, index);
+                    *idx = index;
+                }
                 _ => swc_visit::wrong_ast_path(),
             }
         }
     }
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
     #[cfg_attr(feature = "serde-impl", derive(serde::Serialize, serde::Deserialize))]
-    pub enum EmphasisAndStrongEmphasisField {
-        #[doc = "Represents [`EmphasisAndStrongEmphasis::span`]"]
+    pub enum EmphasisField {
+        #[doc = "Represents [`Emphasis::span`]"]
         Span,
+        #[doc = "Represents [`Emphasis::content`]"]
+        Content(usize),
     }
     impl FencedCodeBlockField {
         pub(crate) fn set_index(&mut self, index: usize) {
@@ -12904,6 +14421,10 @@ pub mod fields {
     pub enum FencedCodeBlockField {
         #[doc = "Represents [`FencedCodeBlock::span`]"]
         Span,
+        #[doc = "Represents [`FencedCodeBlock::info`]"]
+        Info,
+        #[doc = "Represents [`FencedCodeBlock::code`]"]
+        Code,
     }
     impl HTMLBlockField {
         pub(crate) fn set_index(&mut self, index: usize) {
@@ -12917,6 +14438,8 @@ pub mod fields {
     pub enum HTMLBlockField {
         #[doc = "Represents [`HTMLBlock::span`]"]
         Span,
+        #[doc = "Represents [`HTMLBlock::html`]"]
+        Html,
     }
     impl HardLineBreakField {
         pub(crate) fn set_index(&mut self, index: usize) {
@@ -12956,6 +14479,8 @@ pub mod fields {
     pub enum IndentedCodeBlockField {
         #[doc = "Represents [`IndentedCodeBlock::span`]"]
         Span,
+        #[doc = "Represents [`IndentedCodeBlock::code`]"]
+        Code,
     }
     impl InlineBlockField {
         #[inline(always)]
@@ -12968,8 +14493,10 @@ pub mod fields {
     pub enum InlineBlockField {
         #[doc = "Represents [`InlineBlock::CodeSpan`]"]
         CodeSpan,
-        #[doc = "Represents [`InlineBlock::EmphasisAndStrongEmphasis`]"]
-        EmphasisAndStrongEmphasis,
+        #[doc = "Represents [`InlineBlock::Emphasis`]"]
+        Emphasis,
+        #[doc = "Represents [`InlineBlock::StrongEmphasis`]"]
+        StrongEmphasis,
         #[doc = "Represents [`InlineBlock::Link`]"]
         Link,
         #[doc = "Represents [`InlineBlock::Image`]"]
@@ -13038,6 +14565,12 @@ pub mod fields {
     pub enum LinkReferenceDefinitionField {
         #[doc = "Represents [`LinkReferenceDefinition::span`]"]
         Span,
+        #[doc = "Represents [`LinkReferenceDefinition::label`]"]
+        Label,
+        #[doc = "Represents [`LinkReferenceDefinition::destination`]"]
+        Destination,
+        #[doc = "Represents [`LinkReferenceDefinition::title`]"]
+        Title,
     }
     impl ListField {
         pub(crate) fn set_index(&mut self, index: usize) {
@@ -13131,6 +14664,25 @@ pub mod fields {
         #[doc = "Represents [`SoftLineBreak::span`]"]
         Span,
     }
+    impl StrongEmphasisField {
+        pub(crate) fn set_index(&mut self, index: usize) {
+            match self {
+                Self::Content(idx) => {
+                    assert_initial_index(*idx, index);
+                    *idx = index;
+                }
+                _ => swc_visit::wrong_ast_path(),
+            }
+        }
+    }
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    #[cfg_attr(feature = "serde-impl", derive(serde::Serialize, serde::Deserialize))]
+    pub enum StrongEmphasisField {
+        #[doc = "Represents [`StrongEmphasis::span`]"]
+        Span,
+        #[doc = "Represents [`StrongEmphasis::content`]"]
+        Content(usize),
+    }
     impl TextualContentField {
         pub(crate) fn set_index(&mut self, index: usize) {
             match self {
@@ -13165,12 +14717,12 @@ pub mod fields {
         ATXHeading(ATXHeadingField),
         Autolink(AutolinkField),
         BlankLine(BlankLineField),
-        Block(BlockField),
         BlockQuote(BlockQuoteField),
+        Child(ChildField),
         CodeSpan(CodeSpanField),
         ContainerBlock(ContainerBlockField),
         Document(DocumentField),
-        EmphasisAndStrongEmphasis(EmphasisAndStrongEmphasisField),
+        Emphasis(EmphasisField),
         FencedCodeBlock(FencedCodeBlockField),
         HTMLBlock(HTMLBlockField),
         HardLineBreak(HardLineBreakField),
@@ -13186,6 +14738,7 @@ pub mod fields {
         RawHTML(RawHTMLField),
         SetextHeading(SetextHeadingField),
         SoftLineBreak(SoftLineBreakField),
+        StrongEmphasis(StrongEmphasisField),
         TextualContent(TextualContentField),
         ThematicBreak(ThematicBreakField),
     }
@@ -13196,12 +14749,12 @@ pub mod fields {
                 Self::ATXHeading(v) => v.set_index(index),
                 Self::Autolink(v) => v.set_index(index),
                 Self::BlankLine(v) => v.set_index(index),
-                Self::Block(v) => v.set_index(index),
                 Self::BlockQuote(v) => v.set_index(index),
+                Self::Child(v) => v.set_index(index),
                 Self::CodeSpan(v) => v.set_index(index),
                 Self::ContainerBlock(v) => v.set_index(index),
                 Self::Document(v) => v.set_index(index),
-                Self::EmphasisAndStrongEmphasis(v) => v.set_index(index),
+                Self::Emphasis(v) => v.set_index(index),
                 Self::FencedCodeBlock(v) => v.set_index(index),
                 Self::HTMLBlock(v) => v.set_index(index),
                 Self::HardLineBreak(v) => v.set_index(index),
@@ -13217,6 +14770,7 @@ pub mod fields {
                 Self::RawHTML(v) => v.set_index(index),
                 Self::SetextHeading(v) => v.set_index(index),
                 Self::SoftLineBreak(v) => v.set_index(index),
+                Self::StrongEmphasis(v) => v.set_index(index),
                 Self::TextualContent(v) => v.set_index(index),
                 Self::ThematicBreak(v) => v.set_index(index),
             }
@@ -13227,15 +14781,12 @@ pub mod fields {
         ATXHeading(&'ast ATXHeading, ATXHeadingField),
         Autolink(&'ast Autolink, AutolinkField),
         BlankLine(&'ast BlankLine, BlankLineField),
-        Block(&'ast Block, BlockField),
         BlockQuote(&'ast BlockQuote, BlockQuoteField),
+        Child(&'ast Child, ChildField),
         CodeSpan(&'ast CodeSpan, CodeSpanField),
         ContainerBlock(&'ast ContainerBlock, ContainerBlockField),
         Document(&'ast Document, DocumentField),
-        EmphasisAndStrongEmphasis(
-            &'ast EmphasisAndStrongEmphasis,
-            EmphasisAndStrongEmphasisField,
-        ),
+        Emphasis(&'ast Emphasis, EmphasisField),
         FencedCodeBlock(&'ast FencedCodeBlock, FencedCodeBlockField),
         HTMLBlock(&'ast HTMLBlock, HTMLBlockField),
         HardLineBreak(&'ast HardLineBreak, HardLineBreakField),
@@ -13251,6 +14802,7 @@ pub mod fields {
         RawHTML(&'ast RawHTML, RawHTMLField),
         SetextHeading(&'ast SetextHeading, SetextHeadingField),
         SoftLineBreak(&'ast SoftLineBreak, SoftLineBreakField),
+        StrongEmphasis(&'ast StrongEmphasis, StrongEmphasisField),
         TextualContent(&'ast TextualContent, TextualContentField),
         ThematicBreak(&'ast ThematicBreak, ThematicBreakField),
     }
@@ -13267,12 +14819,12 @@ pub mod fields {
                 Self::ATXHeading(_, __field_kind) => __field_kind.set_index(index),
                 Self::Autolink(_, __field_kind) => __field_kind.set_index(index),
                 Self::BlankLine(_, __field_kind) => __field_kind.set_index(index),
-                Self::Block(_, __field_kind) => __field_kind.set_index(index),
                 Self::BlockQuote(_, __field_kind) => __field_kind.set_index(index),
+                Self::Child(_, __field_kind) => __field_kind.set_index(index),
                 Self::CodeSpan(_, __field_kind) => __field_kind.set_index(index),
                 Self::ContainerBlock(_, __field_kind) => __field_kind.set_index(index),
                 Self::Document(_, __field_kind) => __field_kind.set_index(index),
-                Self::EmphasisAndStrongEmphasis(_, __field_kind) => __field_kind.set_index(index),
+                Self::Emphasis(_, __field_kind) => __field_kind.set_index(index),
                 Self::FencedCodeBlock(_, __field_kind) => __field_kind.set_index(index),
                 Self::HTMLBlock(_, __field_kind) => __field_kind.set_index(index),
                 Self::HardLineBreak(_, __field_kind) => __field_kind.set_index(index),
@@ -13288,6 +14840,7 @@ pub mod fields {
                 Self::RawHTML(_, __field_kind) => __field_kind.set_index(index),
                 Self::SetextHeading(_, __field_kind) => __field_kind.set_index(index),
                 Self::SoftLineBreak(_, __field_kind) => __field_kind.set_index(index),
+                Self::StrongEmphasis(_, __field_kind) => __field_kind.set_index(index),
                 Self::TextualContent(_, __field_kind) => __field_kind.set_index(index),
                 Self::ThematicBreak(_, __field_kind) => __field_kind.set_index(index),
             }
@@ -13301,16 +14854,14 @@ pub mod fields {
                 Self::ATXHeading(_, __field_kind) => AstParentKind::ATXHeading(*__field_kind),
                 Self::Autolink(_, __field_kind) => AstParentKind::Autolink(*__field_kind),
                 Self::BlankLine(_, __field_kind) => AstParentKind::BlankLine(*__field_kind),
-                Self::Block(_, __field_kind) => AstParentKind::Block(*__field_kind),
                 Self::BlockQuote(_, __field_kind) => AstParentKind::BlockQuote(*__field_kind),
+                Self::Child(_, __field_kind) => AstParentKind::Child(*__field_kind),
                 Self::CodeSpan(_, __field_kind) => AstParentKind::CodeSpan(*__field_kind),
                 Self::ContainerBlock(_, __field_kind) => {
                     AstParentKind::ContainerBlock(*__field_kind)
                 }
                 Self::Document(_, __field_kind) => AstParentKind::Document(*__field_kind),
-                Self::EmphasisAndStrongEmphasis(_, __field_kind) => {
-                    AstParentKind::EmphasisAndStrongEmphasis(*__field_kind)
-                }
+                Self::Emphasis(_, __field_kind) => AstParentKind::Emphasis(*__field_kind),
                 Self::FencedCodeBlock(_, __field_kind) => {
                     AstParentKind::FencedCodeBlock(*__field_kind)
                 }
@@ -13332,6 +14883,9 @@ pub mod fields {
                 Self::RawHTML(_, __field_kind) => AstParentKind::RawHTML(*__field_kind),
                 Self::SetextHeading(_, __field_kind) => AstParentKind::SetextHeading(*__field_kind),
                 Self::SoftLineBreak(_, __field_kind) => AstParentKind::SoftLineBreak(*__field_kind),
+                Self::StrongEmphasis(_, __field_kind) => {
+                    AstParentKind::StrongEmphasis(*__field_kind)
+                }
                 Self::TextualContent(_, __field_kind) => {
                     AstParentKind::TextualContent(*__field_kind)
                 }
@@ -13355,14 +14909,14 @@ impl<'ast> From<&'ast BlankLine> for NodeRef<'ast> {
         NodeRef::BlankLine(node)
     }
 }
-impl<'ast> From<&'ast Block> for NodeRef<'ast> {
-    fn from(node: &'ast Block) -> Self {
-        NodeRef::Block(node)
-    }
-}
 impl<'ast> From<&'ast BlockQuote> for NodeRef<'ast> {
     fn from(node: &'ast BlockQuote) -> Self {
         NodeRef::BlockQuote(node)
+    }
+}
+impl<'ast> From<&'ast Child> for NodeRef<'ast> {
+    fn from(node: &'ast Child) -> Self {
+        NodeRef::Child(node)
     }
 }
 impl<'ast> From<&'ast CodeSpan> for NodeRef<'ast> {
@@ -13380,9 +14934,9 @@ impl<'ast> From<&'ast Document> for NodeRef<'ast> {
         NodeRef::Document(node)
     }
 }
-impl<'ast> From<&'ast EmphasisAndStrongEmphasis> for NodeRef<'ast> {
-    fn from(node: &'ast EmphasisAndStrongEmphasis) -> Self {
-        NodeRef::EmphasisAndStrongEmphasis(node)
+impl<'ast> From<&'ast Emphasis> for NodeRef<'ast> {
+    fn from(node: &'ast Emphasis) -> Self {
+        NodeRef::Emphasis(node)
     }
 }
 impl<'ast> From<&'ast FencedCodeBlock> for NodeRef<'ast> {
@@ -13460,6 +15014,11 @@ impl<'ast> From<&'ast SoftLineBreak> for NodeRef<'ast> {
         NodeRef::SoftLineBreak(node)
     }
 }
+impl<'ast> From<&'ast StrongEmphasis> for NodeRef<'ast> {
+    fn from(node: &'ast StrongEmphasis) -> Self {
+        NodeRef::StrongEmphasis(node)
+    }
+}
 impl<'ast> From<&'ast TextualContent> for NodeRef<'ast> {
     fn from(node: &'ast TextualContent) -> Self {
         NodeRef::TextualContent(node)
@@ -13475,12 +15034,12 @@ pub enum NodeRef<'ast> {
     ATXHeading(&'ast ATXHeading),
     Autolink(&'ast Autolink),
     BlankLine(&'ast BlankLine),
-    Block(&'ast Block),
     BlockQuote(&'ast BlockQuote),
+    Child(&'ast Child),
     CodeSpan(&'ast CodeSpan),
     ContainerBlock(&'ast ContainerBlock),
     Document(&'ast Document),
-    EmphasisAndStrongEmphasis(&'ast EmphasisAndStrongEmphasis),
+    Emphasis(&'ast Emphasis),
     FencedCodeBlock(&'ast FencedCodeBlock),
     HTMLBlock(&'ast HTMLBlock),
     HardLineBreak(&'ast HardLineBreak),
@@ -13496,6 +15055,7 @@ pub enum NodeRef<'ast> {
     RawHTML(&'ast RawHTML),
     SetextHeading(&'ast SetextHeading),
     SoftLineBreak(&'ast SoftLineBreak),
+    StrongEmphasis(&'ast StrongEmphasis),
     TextualContent(&'ast TextualContent),
     ThematicBreak(&'ast ThematicBreak),
 }
@@ -13508,7 +15068,7 @@ impl<'ast> NodeRef<'ast> {
                 let iterator = ::std::iter::empty::<NodeRef<'ast>>().chain(
                     node.children
                         .iter()
-                        .flat_map(|item| ::std::iter::once(NodeRef::InlineBlock(&item))),
+                        .flat_map(|item| ::std::iter::once(NodeRef::Child(&item))),
                 );
                 Box::new(iterator)
             }
@@ -13520,16 +15080,20 @@ impl<'ast> NodeRef<'ast> {
                 let iterator = ::std::iter::empty::<NodeRef<'ast>>();
                 Box::new(iterator)
             }
-            NodeRef::Block(node) => match node {
-                Block::Leaf(v0) => Box::new(::std::iter::once(NodeRef::LeafBlock(v0))),
-                Block::Container(v0) => Box::new(::std::iter::once(NodeRef::ContainerBlock(v0))),
-                Block::Inline(v0) => Box::new(::std::iter::once(NodeRef::InlineBlock(v0))),
-                _ => Box::new(::std::iter::empty::<NodeRef<'ast>>()),
-            },
             NodeRef::BlockQuote(node) => {
-                let iterator = ::std::iter::empty::<NodeRef<'ast>>();
+                let iterator = ::std::iter::empty::<NodeRef<'ast>>().chain(
+                    node.children
+                        .iter()
+                        .flat_map(|item| ::std::iter::once(NodeRef::Child(&item))),
+                );
                 Box::new(iterator)
             }
+            NodeRef::Child(node) => match node {
+                Child::Leaf(v0) => Box::new(::std::iter::once(NodeRef::LeafBlock(v0))),
+                Child::Container(v0) => Box::new(::std::iter::once(NodeRef::ContainerBlock(v0))),
+                Child::Inline(v0) => Box::new(::std::iter::once(NodeRef::InlineBlock(v0))),
+                _ => Box::new(::std::iter::empty::<NodeRef<'ast>>()),
+            },
             NodeRef::CodeSpan(node) => {
                 let iterator = ::std::iter::empty::<NodeRef<'ast>>();
                 Box::new(iterator)
@@ -13546,12 +15110,16 @@ impl<'ast> NodeRef<'ast> {
                 let iterator = ::std::iter::empty::<NodeRef<'ast>>().chain(
                     node.children
                         .iter()
-                        .flat_map(|item| ::std::iter::once(NodeRef::Block(&item))),
+                        .flat_map(|item| ::std::iter::once(NodeRef::Child(&item))),
                 );
                 Box::new(iterator)
             }
-            NodeRef::EmphasisAndStrongEmphasis(node) => {
-                let iterator = ::std::iter::empty::<NodeRef<'ast>>();
+            NodeRef::Emphasis(node) => {
+                let iterator = ::std::iter::empty::<NodeRef<'ast>>().chain(
+                    node.content
+                        .iter()
+                        .flat_map(|item| ::std::iter::once(NodeRef::TextualContent(&item))),
+                );
                 Box::new(iterator)
             }
             NodeRef::FencedCodeBlock(node) => {
@@ -13576,8 +15144,9 @@ impl<'ast> NodeRef<'ast> {
             }
             NodeRef::InlineBlock(node) => match node {
                 InlineBlock::CodeSpan(v0) => Box::new(::std::iter::once(NodeRef::CodeSpan(v0))),
-                InlineBlock::EmphasisAndStrongEmphasis(v0) => {
-                    Box::new(::std::iter::once(NodeRef::EmphasisAndStrongEmphasis(v0)))
+                InlineBlock::Emphasis(v0) => Box::new(::std::iter::once(NodeRef::Emphasis(v0))),
+                InlineBlock::StrongEmphasis(v0) => {
+                    Box::new(::std::iter::once(NodeRef::StrongEmphasis(v0)))
                 }
                 InlineBlock::Link(v0) => Box::new(::std::iter::once(NodeRef::Link(v0))),
                 InlineBlock::Image(v0) => Box::new(::std::iter::once(NodeRef::Image(v0))),
@@ -13636,7 +15205,7 @@ impl<'ast> NodeRef<'ast> {
                 let iterator = ::std::iter::empty::<NodeRef<'ast>>().chain(
                     node.children
                         .iter()
-                        .flat_map(|item| ::std::iter::once(NodeRef::InlineBlock(&item))),
+                        .flat_map(|item| ::std::iter::once(NodeRef::Child(&item))),
                 );
                 Box::new(iterator)
             }
@@ -13648,12 +15217,20 @@ impl<'ast> NodeRef<'ast> {
                 let iterator = ::std::iter::empty::<NodeRef<'ast>>().chain(
                     node.children
                         .iter()
-                        .flat_map(|item| ::std::iter::once(NodeRef::InlineBlock(&item))),
+                        .flat_map(|item| ::std::iter::once(NodeRef::Child(&item))),
                 );
                 Box::new(iterator)
             }
             NodeRef::SoftLineBreak(node) => {
                 let iterator = ::std::iter::empty::<NodeRef<'ast>>();
+                Box::new(iterator)
+            }
+            NodeRef::StrongEmphasis(node) => {
+                let iterator = ::std::iter::empty::<NodeRef<'ast>>().chain(
+                    node.content
+                        .iter()
+                        .flat_map(|item| ::std::iter::once(NodeRef::TextualContent(&item))),
+                );
                 Box::new(iterator)
             }
             NodeRef::TextualContent(node) => {

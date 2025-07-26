@@ -1,7 +1,6 @@
 use std::{fmt::Debug, mem::take};
 
-use swc_atoms::Atom;
-use swc_common::{BytePos, Span};
+use swc_common::{input::Input, BytePos, Span};
 
 use super::PResult;
 use crate::{
@@ -12,14 +11,25 @@ use crate::{
     },
 };
 
+pub trait ConsumableInput<'a, S>
+where
+    Self: Input<'a>,
+{
+    fn next(&mut self) -> Option<char>;
+
+    fn consume(&mut self);
+
+    fn reconsume_in_state(&mut self, state: S);
+
+    fn consume_next_char(&mut self) -> Option<char>;
+}
+
 pub trait ParserInput: Iterator<Item = TokenAndSpan> {
     fn start_pos(&mut self) -> BytePos;
 
     fn last_pos(&mut self) -> BytePos;
 
     fn take_errors(&mut self) -> Vec<Error>;
-
-    fn set_last_start_tag_name(&mut self, tag_name: &Atom);
 
     fn set_input_state(&mut self, state: State);
 }
