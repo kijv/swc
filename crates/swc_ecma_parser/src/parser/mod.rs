@@ -1,7 +1,7 @@
 #![allow(clippy::let_unit_value)]
 #![deny(non_snake_case)]
 
-use swc_common::{comments::Comments, input::StringInput};
+use swc_common::{comments::Comments, input::StringInput, Span};
 use swc_ecma_ast::*;
 use swc_ecma_lexer::common::parser::{
     buffer::Buffer as BufferTrait, expr::parse_lhs_expr, module_item::parse_module_item_block_body,
@@ -36,6 +36,13 @@ mod typescript;
 
 pub use swc_ecma_lexer::common::parser::PResult;
 
+pub struct ParserCheckpoint<I: Tokens> {
+    lexer: I::Checkpoint,
+    buffer_prev_span: Span,
+    buffer_cur: TokenAndSpan,
+    buffer_next: Option<crate::lexer::NextTokenAndSpan>,
+}
+
 /// EcmaScript parser.
 #[derive(Clone)]
 pub struct Parser<I: self::input::Tokens> {
@@ -46,8 +53,8 @@ pub struct Parser<I: self::input::Tokens> {
 
 impl<'a, I: Tokens> swc_ecma_lexer::common::parser::Parser<'a> for Parser<I> {
     type Buffer = self::input::Buffer<I>;
+    type Checkpoint = ParserCheckpoint<I>;
     type I = I;
-    type Lexer = crate::lexer::Lexer<'a>;
     type Next = crate::lexer::NextTokenAndSpan;
     type Token = Token;
     type TokenAndSpan = TokenAndSpan;
@@ -70,6 +77,22 @@ impl<'a, I: Tokens> swc_ecma_lexer::common::parser::Parser<'a> for Parser<I> {
     #[inline(always)]
     fn state_mut(&mut self) -> &mut swc_ecma_lexer::common::parser::state::State {
         &mut self.state
+    }
+
+    fn checkpoint_save(&self) -> Self::Checkpoint {
+        Self::Checkpoint {
+            lexer: self.input.iter.checkpoint_save(),
+            buffer_cur: self.input.cur,
+            buffer_next: self.input.next.clone(),
+            buffer_prev_span: self.input.prev_span,
+        }
+    }
+
+    fn checkpoint_load(&mut self, checkpoint: Self::Checkpoint) {
+        self.input.iter.checkpoint_load(checkpoint.lexer);
+        self.input.cur = checkpoint.buffer_cur;
+        self.input.next = checkpoint.buffer_next;
+        self.input.prev_span = checkpoint.buffer_prev_span;
     }
 
     #[inline(always)]
@@ -145,11 +168,13 @@ impl<I: Tokens> Parser<I> {
         ctx.set(Context::InDeclare, in_declare);
         input.set_ctx(ctx);
 
-        Parser {
+        let mut p = Parser {
             state: Default::default(),
             input: crate::parser::input::Buffer::new(input),
             found_module_item: false,
-        }
+        };
+        p.input.bump(); // consume EOF
+        p
     }
 
     pub fn take_errors(&mut self) -> Vec<Error> {
@@ -170,11 +195,16 @@ impl<I: Tokens> Parser<I> {
 
         let shebang = parse_shebang(self)?;
 
-        parse_stmt_block_body(self, true, None).map(|body| Script {
+        let ret = parse_stmt_block_body(self, true, None).map(|body| Script {
             span: self.span(start),
             body,
             shebang,
-        })
+        })?;
+
+        debug_assert!(self.input().cur() == &Token::Eof);
+        self.input_mut().bump();
+
+        Ok(ret)
     }
 
     pub fn parse_commonjs(&mut self) -> PResult<Script> {
@@ -189,11 +219,16 @@ impl<I: Tokens> Parser<I> {
         let start = self.cur_pos();
         let shebang = parse_shebang(self)?;
 
-        parse_stmt_block_body(self, true, None).map(|body| Script {
+        let ret = parse_stmt_block_body(self, true, None).map(|body| Script {
             span: self.span(start),
             body,
             shebang,
-        })
+        })?;
+
+        debug_assert!(self.input().cur() == &Token::Eof);
+        self.input_mut().bump();
+
+        Ok(ret)
     }
 
     pub fn parse_typescript_module(&mut self) -> PResult<Module> {
@@ -209,11 +244,16 @@ impl<I: Tokens> Parser<I> {
         let start = self.cur_pos();
         let shebang = parse_shebang(self)?;
 
-        parse_module_item_block_body(self, true, None).map(|body| Module {
+        let ret = parse_module_item_block_body(self, true, None).map(|body| Module {
             span: self.span(start),
             body,
             shebang,
-        })
+        })?;
+
+        debug_assert!(self.input().cur() == &Token::Eof);
+        self.input_mut().bump();
+
+        Ok(ret)
     }
 
     /// Returns [Module] if it's a module and returns [Script] if it's not a
@@ -243,7 +283,7 @@ impl<I: Tokens> Parser<I> {
             self.input.set_ctx(ctx);
         }
 
-        Ok(if has_module_item {
+        let ret = if has_module_item {
             Program::Module(Module {
                 span: self.span(start),
                 body,
@@ -262,7 +302,12 @@ impl<I: Tokens> Parser<I> {
                 body,
                 shebang,
             })
-        })
+        };
+
+        debug_assert!(self.input().cur() == &Token::Eof);
+        self.input_mut().bump();
+
+        Ok(ret)
     }
 
     pub fn parse_module(&mut self) -> PResult<Module> {
@@ -277,11 +322,16 @@ impl<I: Tokens> Parser<I> {
         let start = self.cur_pos();
         let shebang = parse_shebang(self)?;
 
-        parse_module_item_block_body(self, true, None).map(|body| Module {
+        let ret = parse_module_item_block_body(self, true, None).map(|body| Module {
             span: self.span(start),
             body,
             shebang,
-        })
+        })?;
+
+        debug_assert!(self.input().cur() == &Token::Eof);
+        self.input_mut().bump();
+
+        Ok(ret)
     }
 }
 

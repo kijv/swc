@@ -11,7 +11,7 @@ use crate::{
         input::Tokens,
         lexer::{
             char::CharExt,
-            comments_buffer::{BufferedComment, BufferedCommentKind},
+            comments_buffer::{BufferedCommentKind, CommentsBufferTrait},
             state::{
                 State as StateTrait, TokenKind as TokenKindTrait, TokenType as TokenTypeTrait,
             },
@@ -641,6 +641,8 @@ impl crate::common::lexer::state::TokenType for TokenType {
 }
 
 impl Tokens<TokenAndSpan> for Lexer<'_> {
+    type Checkpoint = Self;
+
     #[inline]
     fn set_ctx(&mut self, ctx: Context) {
         if ctx.contains(Context::Module) && !self.module_errors.borrow().is_empty() {
@@ -658,6 +660,14 @@ impl Tokens<TokenAndSpan> for Lexer<'_> {
     #[inline]
     fn ctx_mut(&mut self) -> &mut Context {
         &mut self.ctx
+    }
+
+    fn checkpoint_save(&self) -> Self::Checkpoint {
+        self.clone()
+    }
+
+    fn checkpoint_load(&mut self, checkpoint: Self::Checkpoint) {
+        *self = checkpoint;
     }
 
     #[inline]
@@ -701,12 +711,12 @@ impl Tokens<TokenAndSpan> for Lexer<'_> {
     }
 
     #[inline]
-    fn add_error(&self, error: Error) {
+    fn add_error(&mut self, error: Error) {
         self.errors.borrow_mut().push(error);
     }
 
     #[inline]
-    fn add_module_mode_error(&self, error: Error) {
+    fn add_module_mode_error(&mut self, error: Error) {
         if self.ctx.contains(Context::Module) {
             self.add_error(error);
             return;
@@ -739,14 +749,14 @@ impl Tokens<TokenAndSpan> for Lexer<'_> {
 }
 
 impl Lexer<'_> {
-    fn next_token(&mut self, start: &mut BytePos) -> Result<Option<Token>, Error> {
+    fn next_token(&mut self, start: &mut BytePos) -> Result<Token, Error> {
         if let Some(start) = self.state.next_regexp {
-            return Ok(Some(self.read_regexp(start)?));
+            return self.read_regexp(start);
         }
 
         if self.state.is_first {
             if let Some(shebang) = self.read_shebang()? {
-                return Ok(Some(Token::Shebang(shebang)));
+                return Ok(Token::Shebang(shebang));
             }
         }
 
@@ -768,7 +778,7 @@ impl Lexer<'_> {
         if self.input.last_pos() == self.input.end_pos() {
             // End of input.
             self.consume_pending_comments();
-            return Ok(None);
+            return Ok(Token::Eof);
         }
 
         // println!(
@@ -794,7 +804,7 @@ impl Lexer<'_> {
                     || self.state.context.current() == Some(TokenContext::JSXClosingTag)
                 {
                     if c.is_ident_start() {
-                        return self.read_jsx_word().map(Some);
+                        return self.read_jsx_word();
                     }
 
                     if c == '>' {
@@ -802,13 +812,13 @@ impl Lexer<'_> {
                             // Safety: cur() is Some('>')
                             self.input.bump();
                         }
-                        return Ok(Some(Token::JSXTagEnd));
+                        return Ok(Token::JSXTagEnd);
                     }
 
                     if (c == '\'' || c == '"')
                         && self.state.context.current() == Some(TokenContext::JSXOpeningTag)
                     {
-                        return self.read_jsx_str(c).map(Some);
+                        return self.read_jsx_str(c);
                     }
                 }
 
@@ -830,14 +840,14 @@ impl Lexer<'_> {
                         return self.read_token();
                     }
 
-                    return Ok(Some(Token::JSXTagStart));
+                    return Ok(Token::JSXTagStart);
                 }
             }
         }
 
         if let Some(TokenContext::Tpl) = self.state.context.current() {
             let start = self.state.tpl_start;
-            return self.read_tmpl_token(start).map(Some);
+            return self.read_tmpl_token(start);
         }
 
         self.read_token()
@@ -852,36 +862,29 @@ impl Iterator for Lexer<'_> {
 
         let res = self.next_token(&mut start);
 
-        let token = match res.map_err(Token::Error).map_err(Some) {
+        let token = match res.map_err(Token::Error) {
             Ok(t) => t,
             Err(e) => e,
         };
 
         let span = self.span(start);
-        if let Some(ref token) = token {
+        if !matches!(token, Token::Eof) {
             if let Some(comments) = self.comments_buffer.as_mut() {
-                for comment in comments.take_pending_leading() {
-                    comments.push(BufferedComment {
-                        kind: BufferedCommentKind::Leading,
-                        pos: start,
-                        comment,
-                    });
-                }
+                comments.pending_to_comment(BufferedCommentKind::Leading, start);
             }
 
             self.state.update(start, token.kind());
             self.state.prev_hi = self.last_pos();
             self.state.had_line_break_before_last = self.had_line_break_before_last();
-        }
-
-        token.map(|token| {
             // Attach span to token.
-            TokenAndSpan {
+            Some(TokenAndSpan {
                 token,
                 had_line_break: self.had_line_break_before_last(),
                 span,
-            }
-        })
+            })
+        } else {
+            None
+        }
     }
 }
 

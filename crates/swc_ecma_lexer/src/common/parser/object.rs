@@ -38,9 +38,9 @@ fn parse_object<'a, P: Parser<'a>, Object, ObjectProp>(
         while !p.input_mut().eat(&P::Token::RBRACE) {
             props.push(parse_prop(p)?);
 
-            if !p.input_mut().is(&P::Token::RBRACE) {
+            if !p.input().is(&P::Token::RBRACE) {
                 expect!(p, &P::Token::COMMA);
-                if p.input_mut().is(&P::Token::RBRACE) {
+                if p.input().is(&P::Token::RBRACE) {
                     trailing_comma = Some(p.input().prev_span());
                 }
             }
@@ -198,21 +198,20 @@ fn parse_expr_object_prop<'a, P: Parser<'a>>(p: &mut P) -> PResult<PropOrSpread>
 
     let key = p.parse_prop_name()?;
 
+    let cur = p.input().cur();
     if p.input().syntax().typescript()
-        && !p.input_mut().cur().is_some_and(|cur| {
-            cur.is_lparen()
-                || cur.is_lbracket()
-                || cur.is_colon()
-                || cur.is_comma()
-                || cur.is_question()
-                || cur.is_equal()
-                || cur.is_star()
-                || cur.is_str()
-                || cur.is_num()
-                || cur.is_word()
-        })
-        && !(p.input().syntax().typescript() && p.input_mut().is(&P::Token::LESS))
-        && !(p.input_mut().is(&P::Token::RBRACE) && matches!(key, PropName::Ident(..)))
+        && !(cur.is_lparen()
+            || cur.is_lbracket()
+            || cur.is_colon()
+            || cur.is_comma()
+            || cur.is_question()
+            || cur.is_equal()
+            || cur.is_star()
+            || cur.is_str()
+            || cur.is_num()
+            || cur.is_word())
+        && !(p.input().syntax().typescript() && p.input().is(&P::Token::LESS))
+        && !(p.input().is(&P::Token::RBRACE) && matches!(key, PropName::Ident(..)))
     {
         trace_cur!(p, parse_object_prop_error);
 
@@ -239,8 +238,8 @@ fn parse_expr_object_prop<'a, P: Parser<'a>>(p: &mut P) -> PResult<PropOrSpread>
     }
 
     // Handle `a(){}` (and async(){} / get(){} / set(){})
-    if (p.input().syntax().typescript() && p.input_mut().is(&P::Token::LESS))
-        || p.input_mut().is(&P::Token::LPAREN)
+    if (p.input().syntax().typescript() && p.input().is(&P::Token::LESS))
+        || p.input().is(&P::Token::LPAREN)
     {
         return p
             .do_inside_of_context(Context::AllowDirectSuper, |p| {
@@ -272,10 +271,8 @@ fn parse_expr_object_prop<'a, P: Parser<'a>>(p: &mut P) -> PResult<PropOrSpread>
 
     // `ident` from parse_prop_name is parsed as 'IdentifierName'
     // It means we should check for invalid expressions like { for, }
-    if p.input_mut()
-        .cur()
-        .is_some_and(|cur| cur.is_equal() || cur.is_comma() || cur.is_rbrace())
-    {
+    let cur = p.input().cur();
+    if cur.is_equal() || cur.is_comma() || cur.is_rbrace() {
         if p.ctx().is_reserved_word(&ident.sym) {
             p.emit_err(ident.span, SyntaxError::ReservedWordInObjShorthandOrPat);
         }

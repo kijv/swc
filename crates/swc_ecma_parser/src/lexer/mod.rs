@@ -1,6 +1,6 @@
 //! ECMAScript lexer.
 
-use std::{cell::RefCell, char, iter::FusedIterator, rc::Rc};
+use std::{char, iter::FusedIterator, rc::Rc};
 
 use swc_atoms::AtomStoreCell;
 use swc_common::{
@@ -11,10 +11,7 @@ use swc_common::{
 use swc_ecma_ast::EsVersion;
 use swc_ecma_lexer::{
     common::{
-        lexer::{
-            char::CharExt, comments_buffer::CommentsBuffer, fixed_len_span, pos_span, LexResult,
-            Lexer as LexerTrait,
-        },
+        lexer::{char::CharExt, fixed_len_span, pos_span, LexResult, Lexer as LexerTrait},
         syntax::SyntaxFlags,
     },
     lexer::TokenFlags,
@@ -24,11 +21,13 @@ use self::table::{ByteHandler, BYTE_HANDLERS};
 use crate::{
     error::{Error, SyntaxError},
     input::Tokens,
+    lexer::comments_buffer::CommentsBuffer,
     Context, Syntax,
 };
 
 #[cfg(feature = "unstable")]
 pub(crate) mod capturing;
+mod comments_buffer;
 mod state;
 mod table;
 pub(crate) mod token;
@@ -50,8 +49,8 @@ pub struct Lexer<'a> {
     pub(crate) syntax: SyntaxFlags,
     pub(crate) target: EsVersion,
 
-    errors: Rc<RefCell<Vec<Error>>>,
-    module_errors: Rc<RefCell<Vec<Error>>>,
+    errors: Vec<Error>,
+    module_errors: Vec<Error>,
 
     atoms: Rc<AtomStoreCell>,
 }
@@ -59,6 +58,7 @@ pub struct Lexer<'a> {
 impl FusedIterator for Lexer<'_> {}
 
 impl<'a> swc_ecma_lexer::common::lexer::Lexer<'a, TokenAndSpan> for Lexer<'a> {
+    type CommentsBuffer = CommentsBuffer;
     type State = self::state::State;
     type Token = self::Token;
 
@@ -73,8 +73,8 @@ impl<'a> swc_ecma_lexer::common::lexer::Lexer<'a, TokenAndSpan> for Lexer<'a> {
     }
 
     #[inline(always)]
-    fn push_error(&self, error: Error) {
-        self.errors.borrow_mut().push(error);
+    fn push_error(&mut self, error: Error) {
+        self.errors.push(error);
     }
 
     #[inline(always)]
@@ -93,16 +93,12 @@ impl<'a> swc_ecma_lexer::common::lexer::Lexer<'a, TokenAndSpan> for Lexer<'a> {
     }
 
     #[inline(always)]
-    fn comments_buffer(
-        &self,
-    ) -> Option<&swc_ecma_lexer::common::lexer::comments_buffer::CommentsBuffer> {
+    fn comments_buffer(&self) -> Option<&Self::CommentsBuffer> {
         self.comments_buffer.as_ref()
     }
 
     #[inline(always)]
-    fn comments_buffer_mut(
-        &mut self,
-    ) -> Option<&mut swc_ecma_lexer::common::lexer::comments_buffer::CommentsBuffer> {
+    fn comments_buffer_mut(&mut self) -> Option<&mut Self::CommentsBuffer> {
         self.comments_buffer.as_mut()
     }
 
@@ -148,29 +144,18 @@ impl<'a> Lexer<'a> {
     }
 
     /// babel: `getTokenFromCode`
-    fn read_token(&mut self) -> LexResult<Option<Token>> {
+    fn read_token(&mut self) -> LexResult<Token> {
         self.token_flags = TokenFlags::empty();
         let byte = match self.input.as_str().as_bytes().first() {
             Some(&v) => v,
-            None => return Ok(None),
+            None => return Ok(Token::Eof),
         };
 
         let handler = unsafe { *(&BYTE_HANDLERS as *const ByteHandler).offset(byte as isize) };
-
-        match handler {
-            Some(handler) => handler(self),
-            None => {
-                let start = self.cur_pos();
-                self.input.bump_bytes(1);
-                self.error_span(
-                    pos_span(start),
-                    SyntaxError::UnexpectedChar { c: byte as _ },
-                )
-            }
-        }
+        handler(self)
     }
 
-    fn read_token_plus_minus<const C: u8>(&mut self) -> LexResult<Option<Token>> {
+    fn read_token_plus_minus<const C: u8>(&mut self) -> LexResult<Token> {
         let start = self.cur_pos();
 
         unsafe {
@@ -179,7 +164,7 @@ impl<'a> Lexer<'a> {
         }
 
         // '++', '--'
-        Ok(Some(if self.input.cur() == Some(C as char) {
+        Ok(if self.input.cur() == Some(C as char) {
             unsafe {
                 // Safety: cur() is Some(c)
                 self.input.bump();
@@ -208,10 +193,10 @@ impl<'a> Lexer<'a> {
             Token::Plus
         } else {
             Token::Minus
-        }))
+        })
     }
 
-    fn read_token_bang_or_eq<const C: u8>(&mut self) -> LexResult<Option<Token>> {
+    fn read_token_bang_or_eq<const C: u8>(&mut self) -> LexResult<Token> {
         let start = self.cur_pos();
         let had_line_break_before_last = self.had_line_break_before_last();
 
@@ -220,7 +205,7 @@ impl<'a> Lexer<'a> {
             self.input.bump();
         }
 
-        Ok(Some(if self.input.eat_byte(b'=') {
+        Ok(if self.input.eat_byte(b'=') {
             // "=="
 
             if self.input.eat_byte(b'=') {
@@ -251,13 +236,13 @@ impl<'a> Lexer<'a> {
             Token::Bang
         } else {
             Token::Eq
-        }))
+        })
     }
 }
 
 impl Lexer<'_> {
     #[inline(never)]
-    fn read_token_lt_gt<const C: u8>(&mut self) -> LexResult<Option<Token>> {
+    fn read_token_lt_gt<const C: u8>(&mut self) -> LexResult<Token> {
         let had_line_break_before_last = self.had_line_break_before_last();
         let start = self.cur_pos();
         self.bump();
@@ -267,9 +252,9 @@ impl Lexer<'_> {
             && !self.ctx.contains(Context::ShouldNotLexLtOrGtAsType)
         {
             if C == b'<' {
-                return Ok(Some(Token::Lt));
+                return Ok(Token::Lt);
             } else if C == b'>' {
-                return Ok(Some(Token::Gt));
+                return Ok(Token::Gt);
             }
         }
 
@@ -333,12 +318,12 @@ impl Lexer<'_> {
             return self.read_token();
         }
 
-        Ok(Some(token))
+        Ok(token)
     }
 
-    fn read_token_back_quote(&mut self) -> LexResult<Option<Token>> {
+    fn read_token_back_quote(&mut self) -> LexResult<Token> {
         let start = self.cur_pos();
-        self.scan_template_token(start, true).map(Some)
+        self.scan_template_token(start, true)
     }
 
     fn scan_template_token(

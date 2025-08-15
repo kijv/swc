@@ -44,7 +44,6 @@ use swc_common::{comments::Comments, pass::Repeated, sync::Lrc, SourceMap, Synta
 use swc_ecma_ast::*;
 use swc_ecma_transforms_optimization::debug_assert_valid;
 use swc_ecma_usage_analyzer::marks::Marks;
-use swc_ecma_utils::ExprCtx;
 use swc_ecma_visit::VisitMutWith;
 use swc_timer::timer;
 
@@ -57,7 +56,6 @@ use crate::{
     pass::{
         global_defs, mangle_names::idents_to_preserve, mangle_props::mangle_properties,
         merge_exports::merge_exports, postcompress::postcompress_optimizer,
-        precompress::precompress_optimizer,
     },
     // program_data::ModuleInfo,
     timing::Timings,
@@ -122,18 +120,6 @@ pub fn optimize(
                 extra.top_level_mark,
             ));
         }
-    }
-
-    if let Some(_options) = &options.compress {
-        let _timer = timer!("precompress");
-
-        n.visit_mut_with(&mut precompress_optimizer(ExprCtx {
-            unresolved_ctxt: SyntaxContext::empty().apply_mark(marks.unresolved_mark),
-            is_unresolved_ref_safe: false,
-            in_strict: false,
-            remaining_depth: 6,
-        }));
-        debug_assert_valid(&n);
     }
 
     if options.compress.is_some() {
@@ -217,20 +203,17 @@ pub fn optimize(
         let preserved = idents_to_preserve(mangle, marks, &n);
 
         let chars = if !mangle.disable_char_freq {
-            CharFreq::compute(
-                &n,
-                &preserved,
-                SyntaxContext::empty().apply_mark(marks.unresolved_mark),
-            )
-            .compile()
+            debug_assert!(preserved.idents.is_some());
+            CharFreq::compute(&n, preserved.idents.as_ref().unwrap()).compile()
         } else {
+            debug_assert!(preserved.idents.is_none());
             CharFreq::default().compile()
         };
 
         mangle_names(
             &mut n,
             mangle,
-            preserved,
+            preserved.preserved,
             chars,
             extra.top_level_mark,
             extra.mangle_name_cache.clone(),
